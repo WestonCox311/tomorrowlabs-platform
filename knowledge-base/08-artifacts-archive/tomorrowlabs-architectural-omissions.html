@@ -1,0 +1,1260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TomorrowLabs · Architectural Omissions</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --paper: #F7F4ED;
+    --paper-warm: #FAF6EC;
+    --paper-cream: #FDF8E8;
+    --ink: #1A1614;
+    --ink-soft: #4A413B;
+    --ink-faded: #8A7F76;
+    --line: #C8BFB1;
+    --line-faint: #E5DDD0;
+    
+    --moss: #2D5F3F;
+    --moss-tint: #E8F0EB;
+    
+    --rust: #B85C2E;
+    --rust-deep: #8B3F1C;
+    --rust-tint: #F4E8E0;
+    
+    --gold: #A87D3F;
+    --gold-tint: #F0E4D2;
+    
+    --slate: #5A6B6D;
+    --slate-tint: #E5EAEB;
+    
+    --clay: #C49968;
+    --clay-tint: #F0E4D2;
+    
+    --shadow: rgba(26, 22, 20, 0.06);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Fraunces', Georgia, serif;
+    line-height: 1.55;
+    min-height: 100vh;
+    padding: 32px 24px 80px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet {
+    max-width: 980px;
+    margin: 0 auto;
+    background: var(--paper-warm);
+    border: 1px solid var(--ink);
+    padding: 56px 64px 80px;
+    position: relative;
+    box-shadow: 0 1px 0 var(--ink), 0 2px 32px var(--shadow);
+  }
+
+  .sheet::before, .sheet::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: 1.5px solid var(--ink);
+  }
+  .sheet::before {
+    top: -1px; left: -1px;
+    border-right: none; border-bottom: none;
+  }
+  .sheet::after {
+    bottom: -1px; right: -1px;
+    border-left: none; border-top: none;
+  }
+
+  /* HEADER */
+  .doc-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .doc-meta .eyebrow {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--rust-deep);
+    font-weight: 700;
+  }
+
+  .doc-meta .status {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faded);
+    font-weight: 500;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 48px;
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+    color: var(--ink);
+  }
+
+  h1 em {
+    font-style: italic;
+    color: var(--rust-deep);
+    font-weight: 400;
+  }
+
+  .deck {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    font-style: italic;
+    color: var(--ink-soft);
+    line-height: 1.5;
+    max-width: 720px;
+    margin-bottom: 28px;
+    font-weight: 300;
+  }
+
+  .framing {
+    background: var(--rust-tint);
+    border-left: 3px solid var(--rust);
+    padding: 22px 26px;
+    margin-bottom: 48px;
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--ink-soft);
+  }
+
+  .framing strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* LAYER SECTIONS */
+  .layer-section {
+    margin-bottom: 56px;
+  }
+
+  .layer-header {
+    margin-bottom: 24px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+  }
+
+  .layer-header .num {
+    font-family: 'Fraunces', serif;
+    font-size: 56px;
+    font-weight: 300;
+    font-style: italic;
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+  }
+
+  .layer-header .info h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 28px;
+    font-weight: 500;
+    line-height: 1.15;
+    margin-bottom: 4px;
+  }
+
+  .layer-header .info h2 em {
+    font-style: italic;
+  }
+
+  .layer-header .info .layer-tag {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 3px 8px;
+  }
+
+  /* Layer colors */
+  .layer-section.l1 .layer-header .num,
+  .layer-section.l1 .layer-header .info h2 em { color: var(--moss); }
+  .layer-section.l1 .layer-header .info .layer-tag {
+    background: var(--moss); color: var(--paper);
+  }
+
+  .layer-section.l2 .layer-header .num,
+  .layer-section.l2 .layer-header .info h2 em { color: var(--rust-deep); }
+  .layer-section.l2 .layer-header .info .layer-tag {
+    background: var(--rust-deep); color: var(--paper);
+  }
+
+  .layer-section.l3 .layer-header .num,
+  .layer-section.l3 .layer-header .info h2 em { color: var(--gold); }
+  .layer-section.l3 .layer-header .info .layer-tag {
+    background: var(--gold); color: var(--paper);
+  }
+
+  .layer-section.l4 .layer-header .num,
+  .layer-section.l4 .layer-header .info h2 em { color: var(--slate); }
+  .layer-section.l4 .layer-header .info .layer-tag {
+    background: var(--slate); color: var(--paper);
+  }
+
+  .layer-section.cc .layer-header .num,
+  .layer-section.cc .layer-header .info h2 em { color: var(--clay); }
+  .layer-section.cc .layer-header .info .layer-tag {
+    background: var(--ink); color: var(--clay);
+  }
+
+  /* OMISSION ITEMS */
+  .omission {
+    margin-bottom: 24px;
+    padding: 22px 26px;
+    background: var(--paper-cream);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--line);
+  }
+
+  .omission.reason-deferred {
+    border-left-color: var(--moss);
+  }
+
+  .omission.reason-scope {
+    border-left-color: var(--gold);
+  }
+
+  .omission.reason-avoid-rebuild {
+    border-left-color: var(--slate);
+  }
+
+  .omission.reason-honest-gap {
+    border-left-color: var(--rust);
+  }
+
+  .omission-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .omission-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .omission-reason-tag {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 1px;
+  }
+
+  .omission-reason-tag.deferred {
+    background: var(--moss-tint);
+    color: var(--moss);
+    border: 1px solid var(--moss);
+  }
+
+  .omission-reason-tag.scope {
+    background: var(--gold-tint);
+    color: var(--gold);
+    border: 1px solid var(--gold);
+  }
+
+  .omission-reason-tag.avoid-rebuild {
+    background: var(--slate-tint);
+    color: var(--slate);
+    border: 1px solid var(--slate);
+  }
+
+  .omission-reason-tag.honest-gap {
+    background: var(--rust-tint);
+    color: var(--rust-deep);
+    border: 1px solid var(--rust);
+  }
+
+  .omission-body {
+    font-family: 'Fraunces', serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+  }
+
+  .omission-body p {
+    margin-bottom: 8px;
+  }
+
+  .omission-body p:last-child {
+    margin-bottom: 0;
+  }
+
+  .omission-body strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .omission-body em {
+    font-style: italic;
+  }
+
+  /* THE LEGEND */
+  .reason-legend {
+    background: var(--paper-cream);
+    border: 1px solid var(--ink);
+    padding: 24px 28px;
+    margin-bottom: 48px;
+  }
+
+  .reason-legend-title {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+
+  .legend-items {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+
+  .legend-item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+
+  .legend-marker {
+    width: 4px;
+    flex-shrink: 0;
+    margin-top: 4px;
+    height: 32px;
+  }
+
+  .legend-marker.deferred { background: var(--moss); }
+  .legend-marker.scope { background: var(--gold); }
+  .legend-marker.avoid-rebuild { background: var(--slate); }
+  .legend-marker.honest-gap { background: var(--rust); }
+
+  .legend-text strong {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--ink);
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .legend-text span {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    color: var(--ink-soft);
+    line-height: 1.4;
+  }
+
+  /* THE HARDEST OMISSION */
+  .hardest {
+    background: var(--ink);
+    color: var(--paper-warm);
+    padding: 36px 40px;
+    margin: 48px 0;
+  }
+
+  .hardest .h-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--clay);
+    font-weight: 700;
+    margin-bottom: 14px;
+  }
+
+  .hardest h3 {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--paper-warm);
+    margin-bottom: 16px;
+    line-height: 1.3;
+  }
+
+  .hardest p {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--paper-warm);
+    opacity: 0.9;
+    margin-bottom: 12px;
+  }
+
+  .hardest p:last-child {
+    margin-bottom: 0;
+  }
+
+  .hardest strong {
+    color: var(--clay);
+    font-weight: 600;
+  }
+
+  /* CLOSING */
+  .closing {
+    margin-top: 56px;
+    padding-top: 32px;
+    border-top: 2px solid var(--ink);
+  }
+
+  .closing h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 26px;
+    font-weight: 400;
+    line-height: 1.2;
+    margin-bottom: 16px;
+    color: var(--ink);
+  }
+
+  .closing h2 em {
+    font-style: italic;
+    color: var(--moss);
+  }
+
+  .closing p {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--ink);
+    margin-bottom: 14px;
+  }
+
+  /* FOOTER */
+  .footer {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    color: var(--ink-faded);
+  }
+
+  .footer-block .label {
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .footer-block .value {
+    color: var(--ink);
+    font-family: 'Fraunces', serif;
+    font-size: 13px;
+    font-style: italic;
+    line-height: 1.4;
+  }
+
+  @media (max-width: 720px) {
+    body { padding: 16px 12px 60px; }
+    .sheet { padding: 32px 20px 48px; }
+    h1 { font-size: 32px; }
+    .legend-items { grid-template-columns: 1fr; }
+    .footer { grid-template-columns: 1fr; gap: 16px; }
+    .layer-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .omission-header { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sheet">
+
+  <!-- HEADER -->
+  <header class="doc-meta">
+    <div class="eyebrow">TomorrowLabs · Architectural Accountability</div>
+    <div class="status">Omissions Documented · v1</div>
+  </header>
+
+  <h1>What we <em>chose not to build</em>, and why.</h1>
+
+  <p class="deck">
+    The architecture is more honest when its deliberate omissions are visible. This document catalogs the tables we did
+    not build at each layer, organized by the reasoning behind each decision.
+  </p>
+
+  <div class="framing">
+    <p>
+      <strong>Why this document exists.</strong> Any architecture is defined as much by what it includes as by what it
+      excludes. The data architecture we built has 65+ tables. The architecture we <em>could</em> have built had at
+      least 30 more. Some of those omissions are deliberate design choices we'd defend. Some are scope decisions made to
+      ship. A few are gaps we should acknowledge honestly rather than disguise.
+    </p>
+    <p style="margin-top: 12px;">
+      <strong>The four reasons something didn't get built.</strong> Each omission below is tagged with one of four
+      reasons: <em>deferred</em> (the right table, the wrong time), <em>scope</em> (worth building eventually, not now),
+      <em>avoid-rebuild</em> (something else does this better and we should integrate, not duplicate), or
+      <em>honest-gap</em> (we should have built it and didn't, or the question itself is too hard for the current team
+      to answer alone).
+    </p>
+  </div>
+
+  <!-- REASON LEGEND -->
+  <div class="reason-legend">
+    <div class="reason-legend-title">The four reasons</div>
+    <div class="legend-items">
+      <div class="legend-item">
+        <div class="legend-marker deferred"></div>
+        <div class="legend-text">
+          <strong>Deferred</strong>
+          <span>The right table, the wrong time. Will be built when conditions are right or specific work begins.</span>
+        </div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-marker scope"></div>
+        <div class="legend-text">
+          <strong>Scope</strong>
+          <span>Worth building eventually. Not necessary for current decisions or current scale of work.</span>
+        </div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-marker avoid-rebuild"></div>
+        <div class="legend-text">
+          <strong>Avoid Rebuild</strong>
+          <span>An existing system does this better. Integration is the right answer, not duplication.</span>
+        </div>
+      </div>
+      <div class="legend-item">
+        <div class="legend-marker honest-gap"></div>
+        <div class="legend-text">
+          <strong>Honest Gap</strong>
+          <span>We should have built it, or the question is too hard for the current team alone. Named to make accountable.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- LAYER 1 OMISSIONS -->
+  <section class="layer-section l1">
+    <div class="layer-header">
+      <div class="num">01</div>
+      <div class="info">
+        <h2>Layer 01 · <em>Reference</em></h2>
+        <div class="layer-tag">What we didn't build in the spine</div>
+      </div>
+    </div>
+
+    <div class="omission reason-honest-gap">
+      <div class="omission-header">
+        <div class="omission-name">people</div>
+        <div class="omission-reason-tag honest-gap">Honest Gap</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          A canonical table for individuals — community leaders, researchers, partner contacts, advisors, donors. <strong>The
+          most consequential omission in the architecture.</strong>
+        </p>
+        <p>
+          The reason for the gap is technical and political at once. Tracking individuals properly requires GDPR-grade
+          consent infrastructure, privacy controls, deletion mechanisms, and access policies that a four-person startup
+          cannot reasonably implement alongside everything else. Building a half-baked people table would create
+          liability and would breach the consent commitments encoded elsewhere in the architecture.
+        </p>
+        <p>
+          <em>Resolution path:</em> Build it when the org has capacity for a proper privacy infrastructure design, with
+          legal review. For now, individual references in other tables (relationship contacts, communication participants,
+          team members) hold names as text without aggregation. This is deliberately inefficient — it makes querying
+          across individuals hard, which prevents accidental surveillance use.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-deferred">
+      <div class="omission-header">
+        <div class="omission-name">frameworks_and_classifications</div>
+        <div class="omission-reason-tag deferred">Deferred</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          A meta-table holding canonical references to external classification systems (EGIDS scale, UNESCO vitality
+          scale, ELP classifications, ISO standards, regulatory categories). Mentioned in the architecture overview but
+          not built.
+        </p>
+        <p>
+          Currently these frameworks are referenced via enums and free-form text in the tables that use them. That works
+          for now. When we have more than a handful of frameworks active and need to track which versions we're using,
+          when standards were updated, and which assessments reference which versions, the meta-table becomes useful.
+        </p>
+        <p>
+          <em>Resolution path:</em> Build when the first framework version conflict surfaces (e.g., EGIDS gets revised
+          and we need to know which assessments used which version).
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-deferred">
+      <div class="omission-header">
+        <div class="omission-name">standards_and_protocols</div>
+        <div class="omission-reason-tag deferred">Deferred</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          A table for data format standards, identifier systems, file formats, and protocols TomorrowLabs commits to
+          supporting. Mentioned in the architecture overview but not built.
+        </p>
+        <p>
+          The standards we're committed to (Glottocode, ISO 639-3, GeoNames, IANA timezones, ISO 4217 currency codes,
+          ISO 3166 country codes, Unicode blocks, CLDF for linguistic data) are currently documented in the data
+          philosophy and reference library documents. Centralizing them in a queryable table is useful but not urgent.
+        </p>
+        <p>
+          <em>Resolution path:</em> Build when we need machine-readable versioning of our standards commitments —
+          probably when first formal data archive partnership is established.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-scope">
+      <div class="omission-header">
+        <div class="omission-name">indigenous_territories (as distinct table)</div>
+        <div class="omission-reason-tag scope">Scope</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          A dedicated table for indigenous territorial boundaries with full integration to native-land.ca. We chose to
+          handle this within the <code>places</code> table via the <code>granularity = 'indigenous-territory'</code>
+          enum value and the <code>native_land_ca_id</code> field.
+        </p>
+        <p>
+          A standalone table would let us hold richer data — sovereignty claims, boundary contestation, historical
+          territory shifts, tribal enrollment requirements, treaty references. For TomorrowLabs's current work this is
+          overkill, but for any organization deeply embedded in indigenous-led work, this would need to be a first-class
+          entity.
+        </p>
+        <p>
+          <em>Resolution path:</em> Build if and when TomorrowLabs becomes deeply embedded in indigenous-led language
+          work where territorial questions are central to operations.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-deferred">
+      <div class="omission-header">
+        <div class="omission-name">religious_traditions</div>
+        <div class="omission-reason-tag deferred">Deferred</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          Religious traditions deeply shape how communities transmit language and culture. Buddhist temples in Cambodia.
+          Catholic churches in Guatemala. Islamic schools in diaspora communities. The architecture currently captures
+          religious institutions as <code>organizations</code> but doesn't model traditions themselves as entities.
+        </p>
+        <p>
+          <em>Resolution path:</em> Build when we need to query "which of our partners work within Theravada Buddhist
+          traditions?" or similar cross-organizational tradition-based queries. Not urgent.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- LAYER 2 OMISSIONS -->
+  <section class="layer-section l2">
+    <div class="layer-header">
+      <div class="num">02</div>
+      <div class="info">
+        <h2>Layer 02 · <em>Observational</em></h2>
+        <div class="layer-tag">What we didn't track over time</div>
+      </div>
+    </div>
+
+    <div class="omission reason-honest-gap">
+      <div class="omission-header">
+        <div class="omission-name">climate_observations</div>
+        <div class="omission-reason-tag honest-gap">Honest Gap</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          Climate change is materially affecting the communities and places TomorrowLabs works in. Sea level rise in
+          Cambodian river delta communities. Drought in Guatemalan highlands. Extreme heat in Mexico City. Wildfire
+          smoke in Portland. The observational layer should track this.
+        </p>
+        <p>
+          We didn't build it because climate data is voluminous and easily becomes overwhelming. Picking the right
+          subset that's actually decision-relevant — without becoming a climate database masquerading as a language
+          preservation project — requires more thought than I gave it.
+        </p>
+        <p>
+          <em>Resolution path:</em> Add focused climate observation tables when a deployment decision is actively
+          affected by climate considerations. The <code>place_health_safety</code> table has <code>climate_vulnerability_index</code>
+          and <code>recent_climate_events</code> as starter fields, but they're not yet the dedicated observational
+          tracking the issue deserves.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-honest-gap">
+      <div class="omission-header">
+        <div class="omission-name">conflict_and_political_events</div>
+        <div class="omission-reason-tag honest-gap">Honest Gap</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          Political instability, conflict escalation, regime changes, coups, civil unrest. These materially affect
+          deployment safety, partner trust, and community wellbeing. They are time-series by nature.
+        </p>
+        <p>
+          We touched this in <code>regulatory_events</code> and <code>place_health_safety</code> but didn't build a
+          dedicated tracking table. The reason is partly squeamishness — TomorrowLabs's instinct is to focus on positive
+          work, and explicitly cataloging conflict feels uncomfortable. That discomfort is exactly why it should be
+          structured: the architecture can't pretend conflict doesn't shape the work.
+        </p>
+        <p>
+          <em>Resolution path:</em> Add when (not if) a conflict event affects an active partnership or deployment. The
+          table should exist before we need it urgently.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-deferred">
+      <div class="omission-header">
+        <div class="omission-name">educational_outcomes_longitudinal</div>
+        <div class="omission-reason-tag deferred">Deferred</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          A dedicated table for tracking educational outcomes in places we deploy. Literacy rates over time, language-of-
+          instruction policy changes, school enrollment trajectories. Currently aggregated within
+          <code>place_demographics</code> and <code>place_infrastructure</code>.
+        </p>
+        <p>
+          <em>Resolution path:</em> Split out when LDL deployments produce their own educational outcome data and we
+          need to compare against baseline trajectories.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-avoid-rebuild">
+      <div class="omission-header">
+        <div class="omission-name">news_and_media_mentions</div>
+        <div class="omission-reason-tag avoid-rebuild">Avoid Rebuild</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          Tracking news mentions of TomorrowLabs, partner organizations, or topics relevant to our work. We didn't build
+          this because Google Alerts, Mention.com, and similar services do it better than a custom table would.
+        </p>
+        <p>
+          <em>Resolution path:</em> Integrate with whichever media monitoring service we settle on, surface alerts into
+          <code>communications</code> when they affect a partnership, otherwise rely on the external service.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-honest-gap">
+      <div class="omission-header">
+        <div class="omission-name">community_internal_dynamics</div>
+        <div class="omission-reason-tag honest-gap">Honest Gap</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          Communities are not monolithic. The Cambodian-American community in Long Beach has internal generational
+          divides, political differences, religious factions, class stratification. The <code>community_state</code> table
+          touches "generational tension notes" but doesn't seriously model internal community dynamics.
+        </p>
+        <p>
+          Modeling these well is genuinely hard — and harder still without community co-authorship of the schema. We
+          deferred it but the deferral is the gap, not the solution. <strong>This is the kind of work that should not
+          happen without community involvement at the schema design stage.</strong>
+        </p>
+        <p>
+          <em>Resolution path:</em> Pair with community-co-authorship of the v2 data philosophy. Schema design here is
+          itself a relational act, not just a technical one.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-scope">
+      <div class="omission-header">
+        <div class="omission-name">economic_indicators_micro_level</div>
+        <div class="omission-reason-tag scope">Scope</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          Micro-economic indicators below the regional level — household spending patterns, local market dynamics,
+          informal economy participation, cash-vs-digital payment ratios at neighborhood scale. The current
+          <code>place_economic_indicators</code> goes down to metro level but not below.
+        </p>
+        <p>
+          <em>Resolution path:</em> Build when commercial product decisions require sub-regional pricing intelligence —
+          probably when Babagigi expands beyond Wave 1 markets.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- LAYER 3 OMISSIONS -->
+  <section class="layer-section l3">
+    <div class="layer-header">
+      <div class="num">03</div>
+      <div class="info">
+        <h2>Layer 03 · <em>Operational</em></h2>
+        <div class="layer-tag">What we didn't build in active work</div>
+      </div>
+    </div>
+
+    <div class="omission reason-avoid-rebuild">
+      <div class="omission-header">
+        <div class="omission-name">tasks / kanban / project_management</div>
+        <div class="omission-reason-tag avoid-rebuild">Avoid Rebuild</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          Granular task tracking. Sprint boards. Subtasks. Dependencies. We didn't build any of this.
+        </p>
+        <p>
+          Asana already does this. ClickUp does this. Linear does this. Notion does this. Replacing a purpose-built
+          project management tool with custom SQL tables would be wasted engineering effort that competes for budget
+          with mission work.
+        </p>
+        <p>
+          <em>The architectural commitment:</em> <code>programs</code> and <code>deployments</code> hold links to external
+          tool URLs (<code>asana_project_url</code>, <code>notion_workspace_url</code>). The strategic data layer doesn't
+          replicate operational tool data — it references it.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-avoid-rebuild">
+      <div class="omission-header">
+        <div class="omission-name">payments / transactions / accounting</div>
+        <div class="omission-reason-tag avoid-rebuild">Avoid Rebuild</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          Detailed transaction-level financial tracking. Invoice management. Payment processing. Reconciliation. We have
+          <code>financial_flows</code> at the strategic level, but not at the transactional grain.
+        </p>
+        <p>
+          Stripe does payment processing. QuickBooks does accounting. Bill.com does AP. Each is a specialized tool
+          that's better at its job than custom SQL tables would be. The architecture references these via
+          <code>external_reference</code> and <code>source_system</code> fields.
+        </p>
+        <p>
+          <em>The architectural commitment:</em> <code>financial_flows</code> rolls up the strategic view. Detail lives
+          in the operational financial tools and is referenced by external ID.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-avoid-rebuild">
+      <div class="omission-header">
+        <div class="omission-name">product_analytics / user_behavior_events</div>
+        <div class="omission-reason-tag avoid-rebuild">Avoid Rebuild</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          Granular user behavior tracking — page views, feature usage, session length, conversion events. Babagigi will
+          generate millions of these events. We did not build tables for them.
+        </p>
+        <p>
+          Product analytics tools (Mixpanel, Amplitude, PostHog) are purpose-built for high-cardinality event tracking
+          with proper schema flexibility, replay, cohort analysis, and funnel construction. The strategic data layer
+          should never become a product analytics warehouse.
+        </p>
+        <p>
+          <em>The architectural commitment:</em> User-level engagement summaries roll into <code>user_households</code> and
+          related summary fields. Granular events stay in product analytics. Cross-system queries use external IDs.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-deferred">
+      <div class="omission-header">
+        <div class="omission-name">grants_pipeline (vs. grants_active)</div>
+        <div class="omission-reason-tag deferred">Deferred</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          We built <code>grants_active</code> for grants that have been awarded or are at minimum in formal review.
+          We didn't build a separate pipeline table for very-early-stage funder identification, qualification, and
+          prospecting. Those currently live in the <code>funding_landscape</code> table from migration 002 and in the
+          <code>funder_pipeline</code> view.
+        </p>
+        <p>
+          When TomorrowLabs's grant-seeking effort scales beyond Weston managing it personally, a dedicated pipeline
+          table with CRM-like fields becomes useful. Right now it would be over-engineering.
+        </p>
+        <p>
+          <em>Resolution path:</em> Build when grant-seeking becomes a dedicated team function rather than a
+          founder-only activity.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-deferred">
+      <div class="omission-header">
+        <div class="omission-name">incidents / postmortems</div>
+        <div class="omission-reason-tag deferred">Deferred</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          A dedicated table for incidents — operational failures, security events, partner disputes, deployment crises
+          — and the postmortems that follow. The <code>operational_risks</code> table tracks what could go wrong;
+          this would track what did.
+        </p>
+        <p>
+          <em>Resolution path:</em> Build when the first significant incident occurs. The structure should not be
+          designed in advance; let the first real incident shape what the table needs.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-honest-gap">
+      <div class="omission-header">
+        <div class="omission-name">community_co_governance_records</div>
+        <div class="omission-reason-tag honest-gap">Honest Gap</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          The pressure-test document committed to community co-governance mechanisms by Q1 2027 — community review of
+          major decisions, edit access to documents, governance roles in partnerships. The architecture should
+          structurally support this with a dedicated table tracking community governance moments: when communities
+          reviewed decisions, what they said, what changed as a result.
+        </p>
+        <p>
+          We didn't build it. The reason is that the governance mechanism itself is still being designed with partner
+          communities, and building a schema before the practice exists would presuppose the answer.
+        </p>
+        <p>
+          <em>Resolution path:</em> Co-design the schema alongside the actual co-governance practice, with at least one
+          partner community involved in the table design itself. <strong>This is structural for the philosophy
+          commitments.</strong>
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-scope">
+      <div class="omission-header">
+        <div class="omission-name">vendor_contracts / legal_agreements</div>
+        <div class="omission-reason-tag scope">Scope</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          A dedicated table tracking all formal legal agreements — partnership MOUs, vendor contracts, employment
+          agreements, NDAs, grant contracts, license agreements. Currently scattered across
+          <code>infrastructure_dependencies</code>, <code>benefit_sharing_agreements</code>, <code>grants_active</code>,
+          and elsewhere.
+        </p>
+        <p>
+          <em>Resolution path:</em> Consolidate when the number of formal agreements exceeds what Weston can mentally
+          inventory. Probably 18-24 months out.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-scope">
+      <div class="omission-header">
+        <div class="omission-name">internal_knowledge_base</div>
+        <div class="omission-reason-tag scope">Scope</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          A structured table for TomorrowLabs's accumulated operational knowledge — playbooks, FAQs, "how we do X" docs,
+          institutional memory. Currently lives in Notion, Google Docs, and individual heads.
+        </p>
+        <p>
+          <em>Resolution path:</em> The single-founder dependency risk in <code>operational_risks</code> is partly about
+          this gap. The eventual answer is probably better Notion structure plus referenced URLs in our existing tables,
+          not a dedicated knowledge base table. But the operational risk is real.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- LAYER 4 OMISSIONS -->
+  <section class="layer-section l4">
+    <div class="layer-header">
+      <div class="num">04</div>
+      <div class="info">
+        <h2>Layer 04 · <em>Decision Support</em></h2>
+        <div class="layer-tag">What we didn't build in synthesis</div>
+      </div>
+    </div>
+
+    <div class="omission reason-deferred">
+      <div class="omission-header">
+        <div class="omission-name">scenario_models</div>
+        <div class="omission-reason-tag deferred">Deferred</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          Tables for explicit scenario modeling — "if Babagigi adds Hmong in Wave 3, what does the financial trajectory
+          look like under three demand assumptions?" These would be parameterized projections, stored over time so the
+          model can be revisited and compared against actuals.
+        </p>
+        <p>
+          <em>Resolution path:</em> Build when first major strategic decision benefits from explicit scenario comparison
+          with structured parameters. Probably tied to fundraising decisions where investors want to see modeled
+          outcomes.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-deferred">
+      <div class="omission-header">
+        <div class="omission-name">comparative_benchmarks</div>
+        <div class="omission-reason-tag deferred">Deferred</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          A dedicated table for tracking how TomorrowLabs compares against peer organizations on relevant metrics —
+          revenue per language served, partnership longevity, benefit-sharing percentages, language preservation outcomes.
+          The <code>metric_definitions</code> table has an <code>external_benchmark</code> field but no time-series
+          structure for tracking benchmark drift.
+        </p>
+        <p>
+          <em>Resolution path:</em> Build when comparative benchmarking becomes a quarterly governance practice.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-honest-gap">
+      <div class="omission-header">
+        <div class="omission-name">community_facing_dashboards (as schema)</div>
+        <div class="omission-reason-tag honest-gap">Honest Gap</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          The <code>partner_facing_accountability</code> view exists. The <code>dashboards</code> table includes one
+          partner-community-audience entry. But the architecture doesn't yet structure what a community-facing dashboard
+          should actually contain, or how community members would access it, or how their feedback would flow back.
+        </p>
+        <p>
+          This is partly an architectural gap and partly a UX/governance question. <strong>Community-facing dashboards
+          designed without community input would themselves be a betrayal of the philosophy.</strong>
+        </p>
+        <p>
+          <em>Resolution path:</em> Co-design with partner communities. This is the kind of thing that should be built
+          slowly, with one partner first, learning what they actually want to see.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-scope">
+      <div class="omission-header">
+        <div class="omission-name">ml_model_performance_tracking</div>
+        <div class="omission-reason-tag scope">Scope</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          For AI-assisted decision support, tracking model performance over time — are our LLM syntheses getting more
+          useful or less? Are certain types of questions consistently producing better outputs? The
+          <code>ai_synthesis_runs</code> table records individual runs with review notes, but doesn't yet aggregate
+          performance.
+        </p>
+        <p>
+          <em>Resolution path:</em> Build when AI-synthesis use is frequent enough to make trend analysis meaningful.
+          Probably 12-18 months of accumulated runs before patterns become statistically interpretable.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-deferred">
+      <div class="omission-header">
+        <div class="omission-name">public_reports_archive</div>
+        <div class="omission-reason-tag deferred">Deferred</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          A canonical record of public reports TomorrowLabs has published — annual reports, impact reports, white papers,
+          public dashboards. Currently these would live in <code>content_items</code> with appropriate flags, but a
+          dedicated table would let us track publication cadence, audience reach, and what we committed to publicly.
+        </p>
+        <p>
+          <em>Resolution path:</em> Build when public reporting becomes a regular practice — probably tied to first
+          annual report.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CROSS-CUTTING OMISSIONS -->
+  <section class="layer-section cc">
+    <div class="layer-header">
+      <div class="num">00</div>
+      <div class="info">
+        <h2>Cross-cutting · <em>Infrastructure</em></h2>
+        <div class="layer-tag">What we didn't build at the foundation</div>
+      </div>
+    </div>
+
+    <div class="omission reason-honest-gap">
+      <div class="omission-header">
+        <div class="omission-name">access_control_policies (as schema)</div>
+        <div class="omission-reason-tag honest-gap">Honest Gap</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          The architecture references row-level security and access controls repeatedly. It doesn't structurally encode
+          those policies. Currently access decisions would live in application code or database role configuration.
+        </p>
+        <p>
+          A proper access control schema would track: who can read what tables, who can modify, what aggregations are
+          permitted, what queries are auditable, what data leaves the system and to whom. <strong>Without this, the
+          consent commitments in the architecture are honored by policy and developer discipline, not by structure.</strong>
+        </p>
+        <p>
+          <em>Resolution path:</em> Build before the team grows beyond Weston as the only person with database access.
+          Critical infrastructure for organizational integrity.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-deferred">
+      <div class="omission-header">
+        <div class="omission-name">data_quality_assertions</div>
+        <div class="omission-reason-tag deferred">Deferred</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          Structured data quality monitoring — assertions about what should be true in the data (e.g., "every active
+          program has at least one deployment", "every active partnership has a relationship record in the last 90
+          days"), with automated checking and alerting.
+        </p>
+        <p>
+          The architecture supports this conceptually — confidence levels, validation flags, freshness views — but doesn't
+          have dedicated infrastructure for ongoing assertion checking. Tools like Great Expectations or dbt tests would
+          be the right answer.
+        </p>
+        <p>
+          <em>Resolution path:</em> Build when the team grows and the database is being modified by more than one
+          person. Quality drift accelerates with team size.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-honest-gap">
+      <div class="omission-header">
+        <div class="omission-name">consent_audit_chain</div>
+        <div class="omission-reason-tag honest-gap">Honest Gap</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          The <code>consent_records</code> table holds current consent state. It does not hold an immutable audit chain
+          showing every time consent was checked before an operation occurred. For high-stakes consent (community
+          contributions, audio recordings, children's data), the audit chain is what makes the consent commitment
+          enforceable rather than aspirational.
+        </p>
+        <p>
+          <em>Resolution path:</em> Add immutable consent check logging when first content distribution or research
+          publication occurs. The chain should be append-only, with cryptographic ordering ideally.
+        </p>
+      </div>
+    </div>
+
+    <div class="omission reason-scope">
+      <div class="omission-header">
+        <div class="omission-name">identity_resolution_table</div>
+        <div class="omission-reason-tag scope">Scope</div>
+      </div>
+      <div class="omission-body">
+        <p>
+          A dedicated table mapping the same real-world entity across multiple identifier systems. "Long Beach Cambodian
+          community" in MPI data, "Long Beach Cambodians" in Census data, "the Long Beach community" in our own records
+          — same entity, different sources, no current bridge table.
+        </p>
+        <p>
+          <em>Resolution path:</em> Build when first cross-source comparison of the "same" entity produces confusing
+          results. Probably triggered by a specific analytical need.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- THE HARDEST OMISSION -->
+  <div class="hardest">
+    <div class="h-label">The omission that matters most</div>
+    <h3>Community co-authorship of the schema itself.</h3>
+    <p>
+      Every table in this architecture was designed by Weston, working with an AI assistant, with no partner community
+      member in the room when the structural choices were made. The pressure-test document called this out: <strong>a
+      philosophy written without community co-authorship has the structural problem it claims to be against.</strong>
+    </p>
+    <p>
+      The omissions tagged "honest-gap" above are mostly attempts to surface where this matters most — community
+      internal dynamics, community-facing dashboards, community co-governance records. These should not have been
+      designed alone. The fact that they were — even with the intent of revising them later — reflects the same
+      structural issue.
+    </p>
+    <p>
+      The next version of this architecture needs community co-authorship of the schema itself, not just review of what
+      was built. Schema design is a relational act. Doing it well requires being in relationship.
+    </p>
+    <p>
+      <strong>This is named here so the omission is accountable rather than invisible.</strong>
+    </p>
+  </div>
+
+  <!-- CLOSING -->
+  <div class="closing">
+    <h2>The architecture is <em>more honest</em> for naming what it isn't.</h2>
+    <p>
+      Sixty-five tables. Thirty-plus deliberate omissions. Each omission was a choice — to defer, to scope, to integrate
+      rather than rebuild, or to acknowledge a gap we didn't close.
+    </p>
+    <p>
+      The danger of a sprawling architecture is that everything that gets built feels equally intentional. This document
+      pushes back on that. Some things weren't built because we shouldn't have built them. Some weren't built because
+      the tooling that should have built them isn't ours to construct. Some weren't built because we should have
+      and didn't.
+    </p>
+    <p>
+      The point of writing this down is not to look more sophisticated about our own gaps. It is to make those gaps
+      maintainable — visible enough that they get addressed when conditions permit, and named clearly enough that we
+      can't pretend they were never there.
+    </p>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-block">
+      <div class="label">Document</div>
+      <div class="value">Architectural Omissions v1</div>
+    </div>
+    <div class="footer-block">
+      <div class="label">Owner</div>
+      <div class="value">Weston, TomorrowLabs</div>
+    </div>
+    <div class="footer-block">
+      <div class="label">Next Review</div>
+      <div class="value">February 2027 — confirm which omissions still hold</div>
+    </div>
+  </footer>
+
+</div>
+
+</body>
+</html>

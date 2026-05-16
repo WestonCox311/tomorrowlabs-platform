@@ -1,0 +1,1521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TomorrowLabs · Data Architecture Map</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --paper: #F7F4ED;
+    --paper-warm: #FAF6EC;
+    --paper-cream: #FDF8E8;
+    --ink: #1A1614;
+    --ink-soft: #4A413B;
+    --ink-faded: #8A7F76;
+    --line: #C8BFB1;
+    --line-faint: #E5DDD0;
+    
+    --moss: #2D5F3F;
+    --moss-light: #4A7B5A;
+    --moss-tint: #E8F0EB;
+    --moss-deep: #1F4329;
+    
+    --rust: #B85C2E;
+    --rust-deep: #8B3F1C;
+    --rust-tint: #F4E8E0;
+    
+    --gold: #A87D3F;
+    --gold-light: #C49968;
+    --gold-tint: #F0E4D2;
+    
+    --slate: #5A6B6D;
+    --slate-light: #7A8C8E;
+    --slate-tint: #E5EAEB;
+    
+    --clay: #C49968;
+    --clay-tint: #F0E4D2;
+    
+    --plum: #6B4E5C;
+    --plum-tint: #EAE0E5;
+    
+    --shadow: rgba(26, 22, 20, 0.06);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Fraunces', Georgia, serif;
+    line-height: 1.55;
+    min-height: 100vh;
+    padding: 32px 24px 80px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet {
+    max-width: 1280px;
+    margin: 0 auto;
+    background: var(--paper-warm);
+    border: 1px solid var(--ink);
+    padding: 56px 64px 80px;
+    position: relative;
+    box-shadow: 0 1px 0 var(--ink), 0 2px 32px var(--shadow);
+    background-image:
+      radial-gradient(circle at 10% 5%, rgba(184, 92, 46, 0.02) 0%, transparent 40%),
+      radial-gradient(circle at 90% 90%, rgba(45, 95, 63, 0.025) 0%, transparent 45%);
+  }
+
+  .sheet::before, .sheet::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: 1.5px solid var(--ink);
+  }
+  .sheet::before {
+    top: -1px; left: -1px;
+    border-right: none; border-bottom: none;
+  }
+  .sheet::after {
+    bottom: -1px; right: -1px;
+    border-left: none; border-top: none;
+  }
+
+  /* ========== HEADER ========== */
+  .doc-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .doc-meta .eyebrow {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--moss);
+    font-weight: 700;
+  }
+
+  .doc-meta .status {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faded);
+    font-weight: 500;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 52px;
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 20px;
+    color: var(--ink);
+  }
+
+  h1 em {
+    font-style: italic;
+    color: var(--moss);
+    font-weight: 400;
+  }
+
+  .deck {
+    font-family: 'Fraunces', serif;
+    font-size: 19px;
+    font-style: italic;
+    color: var(--ink-soft);
+    line-height: 1.5;
+    max-width: 760px;
+    margin-bottom: 48px;
+    font-weight: 300;
+  }
+
+  /* ========== STATS BAR ========== */
+  .stats-bar {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1px;
+    margin-bottom: 48px;
+    border: 1px solid var(--ink);
+    background: var(--ink);
+  }
+
+  .stat {
+    background: var(--paper-warm);
+    padding: 20px 16px;
+    text-align: center;
+  }
+
+  .stat-num {
+    font-family: 'Fraunces', serif;
+    font-size: 42px;
+    font-weight: 300;
+    font-style: italic;
+    color: var(--moss);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 600;
+  }
+
+  /* ========== SECTION LABELS ========== */
+  section {
+    margin-bottom: 56px;
+  }
+
+  .section-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--rust-deep);
+    font-weight: 700;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-label::before {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    height: 1.5px;
+    background: var(--rust-deep);
+  }
+
+  h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 32px;
+    font-weight: 400;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    margin-bottom: 24px;
+    color: var(--ink);
+  }
+
+  h2 em {
+    font-style: italic;
+    color: var(--moss);
+  }
+
+  p {
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--ink);
+    margin-bottom: 14px;
+  }
+
+  /* ========== THE FULL ARCHITECTURE MAP ========== */
+  .arch-map {
+    margin: 32px 0 48px;
+    border: 2px solid var(--ink);
+    background: var(--ink);
+    overflow: hidden;
+  }
+
+  /* Each architectural layer */
+  .layer-row {
+    background: var(--paper-warm);
+    padding: 24px 28px;
+    border-bottom: 2px solid var(--ink);
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 24px;
+  }
+
+  .layer-row:last-of-type {
+    border-bottom: none;
+  }
+
+  .layer-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .layer-side .num {
+    font-family: 'Fraunces', serif;
+    font-size: 48px;
+    font-weight: 300;
+    font-style: italic;
+    line-height: 0.9;
+    letter-spacing: -0.02em;
+  }
+
+  .layer-side .tag {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 1px;
+  }
+
+  .layer-side .name {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 15px;
+    font-weight: 500;
+    margin-top: 4px;
+  }
+
+  /* Layer-specific colors */
+  .layer-row.l1 .layer-side .num,
+  .layer-row.l1 .layer-side .name { color: var(--moss); }
+  .layer-row.l1 .layer-side .tag { background: var(--moss); color: var(--paper); }
+  .layer-row.l1 { background: linear-gradient(to right, rgba(232, 240, 235, 0.4), var(--paper-warm)); }
+
+  .layer-row.l2 .layer-side .num,
+  .layer-row.l2 .layer-side .name { color: var(--rust-deep); }
+  .layer-row.l2 .layer-side .tag { background: var(--rust-deep); color: var(--paper); }
+  .layer-row.l2 { background: linear-gradient(to right, rgba(244, 232, 224, 0.4), var(--paper-warm)); }
+
+  .layer-row.l3 .layer-side .num,
+  .layer-row.l3 .layer-side .name { color: var(--gold); }
+  .layer-row.l3 .layer-side .tag { background: var(--gold); color: var(--paper); }
+  .layer-row.l3 { background: linear-gradient(to right, rgba(240, 228, 210, 0.4), var(--paper-warm)); }
+
+  .layer-row.l4 .layer-side .num,
+  .layer-row.l4 .layer-side .name { color: var(--slate); }
+  .layer-row.l4 .layer-side .tag { background: var(--slate); color: var(--paper); }
+  .layer-row.l4 { background: linear-gradient(to right, rgba(229, 234, 235, 0.4), var(--paper-warm)); }
+
+  /* Table groups within a layer */
+  .table-groups {
+    display: grid;
+    gap: 12px;
+  }
+
+  .table-group {
+    background: rgba(255, 255, 255, 0.5);
+    border-left: 2px solid var(--line);
+    padding: 10px 14px;
+  }
+
+  .table-group.spine {
+    border-left-color: var(--moss);
+  }
+
+  .group-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .tables-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .table-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    background: var(--paper-cream);
+    border: 1px solid var(--line);
+    padding: 4px 8px;
+    border-radius: 1px;
+    font-weight: 500;
+    color: var(--ink);
+    position: relative;
+  }
+
+  .table-chip.spine {
+    background: var(--moss-tint);
+    border-color: var(--moss);
+    color: var(--moss-deep);
+    font-weight: 600;
+  }
+
+  .table-chip.seeded {
+    border-color: var(--moss);
+    border-style: solid;
+  }
+
+  .table-chip.seeded::after {
+    content: '●';
+    color: var(--moss);
+    font-size: 8px;
+    margin-left: 4px;
+    vertical-align: 2px;
+  }
+
+  .table-chip.unseeded {
+    border-style: dashed;
+    color: var(--ink-faded);
+  }
+
+  .table-chip.view {
+    background: var(--slate-tint);
+    border-color: var(--slate);
+    color: var(--slate);
+    font-style: italic;
+  }
+
+  .table-chip.view::before {
+    content: '▷ ';
+    font-style: normal;
+    margin-right: 1px;
+  }
+
+  /* Cross-cutting infrastructure strip */
+  .cross-cutting {
+    background: var(--ink);
+    color: var(--paper-warm);
+    padding: 20px 28px;
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .cross-cutting .cc-num {
+    font-family: 'Fraunces', serif;
+    font-size: 32px;
+    font-weight: 300;
+    font-style: italic;
+    color: var(--clay);
+    line-height: 1;
+  }
+
+  .cross-cutting .cc-tag {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--clay);
+    margin-top: 6px;
+    display: inline-block;
+    padding: 3px 8px;
+    border: 1px solid var(--clay);
+    border-radius: 1px;
+  }
+
+  .cross-cutting .cc-name {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 14px;
+    color: var(--clay-tint);
+    margin-top: 4px;
+  }
+
+  .cc-content {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .cc-tables {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .cc-tables .table-chip {
+    background: rgba(196, 153, 104, 0.15);
+    border-color: var(--clay);
+    color: var(--clay-tint);
+  }
+
+  .cc-tables .table-chip.seeded::after {
+    color: var(--clay);
+  }
+
+  /* Legend */
+  .legend {
+    background: var(--paper-cream);
+    border: 1px solid var(--line);
+    padding: 18px 24px;
+    margin-top: 24px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px;
+    align-items: center;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--ink-soft);
+  }
+
+  .legend-chip {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    padding: 2px 6px;
+    border: 1px solid var(--line);
+    border-radius: 1px;
+    background: var(--paper-warm);
+  }
+
+  /* ========== ENTITY RELATIONSHIPS DIAGRAM ========== */
+  .relationships {
+    margin: 32px 0;
+    background: var(--paper-cream);
+    border: 1px solid var(--ink);
+    padding: 36px;
+  }
+
+  .rel-title {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 22px;
+    color: var(--ink);
+    margin-bottom: 20px;
+    text-align: center;
+  }
+
+  .spine-diagram {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 32px;
+  }
+
+  .spine-entity {
+    background: var(--moss);
+    color: var(--paper-warm);
+    padding: 20px 16px;
+    text-align: center;
+    position: relative;
+    border-radius: 2px;
+  }
+
+  .spine-entity .entity-name {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 4px;
+  }
+
+  .spine-entity .entity-count {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    opacity: 0.8;
+  }
+
+  .spine-arrows {
+    text-align: center;
+    margin: -10px 0 24px;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    color: var(--ink-faded);
+    font-size: 13px;
+  }
+
+  .joined-by {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-top: 24px;
+  }
+
+  .joined-by-group {
+    background: rgba(255, 255, 255, 0.5);
+    padding: 16px;
+    border-radius: 2px;
+    border: 1px solid var(--line);
+  }
+
+  .joined-by-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--moss);
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+
+  .joined-by-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .joined-by-list .table-chip {
+    font-size: 10px;
+    padding: 3px 6px;
+  }
+
+  /* ========== SECONDARY SECTIONS ========== */
+  .principle-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-top: 24px;
+  }
+
+  .principle {
+    background: var(--paper-cream);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--moss);
+    padding: 20px 24px;
+  }
+
+  .principle-num {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 24px;
+    color: var(--moss);
+    font-weight: 400;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .principle h4 {
+    font-family: 'Fraunces', serif;
+    font-size: 17px;
+    font-weight: 500;
+    margin-bottom: 10px;
+    color: var(--ink);
+    line-height: 1.25;
+  }
+
+  .principle h4 em {
+    font-style: italic;
+  }
+
+  .principle p {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    margin-bottom: 0;
+  }
+
+  /* ========== MIGRATION HISTORY ========== */
+  .migrations {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+    margin-top: 24px;
+  }
+
+  .migration {
+    background: var(--paper-cream);
+    border: 1px solid var(--line);
+    padding: 16px 20px;
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .migration-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 600;
+    background: var(--ink);
+    color: var(--paper-warm);
+    padding: 6px 10px;
+    border-radius: 1px;
+    text-align: center;
+  }
+
+  .migration-content h5 {
+    font-family: 'Fraunces', serif;
+    font-size: 15px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    line-height: 1.2;
+  }
+
+  .migration-content p {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    color: var(--ink-faded);
+    margin-bottom: 0;
+    line-height: 1.4;
+  }
+
+  /* ========== THE FLOW ========== */
+  .flow {
+    background: var(--ink);
+    color: var(--paper-warm);
+    padding: 36px 40px;
+    margin: 48px 0;
+    border-radius: 2px;
+  }
+
+  .flow-title {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 22px;
+    color: var(--paper-warm);
+    margin-bottom: 8px;
+  }
+
+  .flow-deck {
+    font-family: 'Fraunces', serif;
+    font-size: 15px;
+    color: var(--clay-tint);
+    opacity: 0.85;
+    margin-bottom: 24px;
+  }
+
+  .flow-steps {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  .flow-step {
+    background: rgba(196, 153, 104, 0.1);
+    border: 1px solid rgba(196, 153, 104, 0.3);
+    padding: 16px;
+    border-radius: 2px;
+    position: relative;
+  }
+
+  .flow-step .step-num {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 14px;
+    color: var(--clay);
+    margin-bottom: 6px;
+  }
+
+  .flow-step h5 {
+    font-family: 'Fraunces', serif;
+    font-size: 15px;
+    color: var(--paper-warm);
+    font-weight: 500;
+    margin-bottom: 8px;
+    line-height: 1.2;
+  }
+
+  .flow-step p {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    color: var(--paper-warm);
+    opacity: 0.85;
+    margin-bottom: 0;
+    line-height: 1.5;
+  }
+
+  /* ========== SAMPLE QUERY ========== */
+  .sample-query {
+    background: var(--paper-cream);
+    border: 1px solid var(--ink);
+    padding: 28px 32px;
+    margin-top: 24px;
+    border-radius: 2px;
+  }
+
+  .query-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--rust-deep);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .query-text {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 19px;
+    line-height: 1.45;
+    color: var(--ink);
+    margin-bottom: 20px;
+    padding-left: 16px;
+    border-left: 2px solid var(--rust);
+  }
+
+  .query-layers {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  .query-layer {
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+  }
+
+  .query-layer.l1 { border-color: var(--moss); background: rgba(232, 240, 235, 0.4); }
+  .query-layer.l2 { border-color: var(--rust-deep); background: rgba(244, 232, 224, 0.4); }
+  .query-layer.l3 { border-color: var(--gold); background: rgba(240, 228, 210, 0.4); }
+  .query-layer.l4 { border-color: var(--slate); background: rgba(229, 234, 235, 0.4); }
+
+  .query-layer-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .query-layer.l1 .query-layer-label { color: var(--moss); }
+  .query-layer.l2 .query-layer-label { color: var(--rust-deep); }
+  .query-layer.l3 .query-layer-label { color: var(--gold); }
+  .query-layer.l4 .query-layer-label { color: var(--slate); }
+
+  .query-layer-content {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-soft);
+    line-height: 1.5;
+  }
+
+  /* ========== CLOSING ========== */
+  .closing {
+    margin-top: 56px;
+    padding-top: 32px;
+    border-top: 2px solid var(--ink);
+  }
+
+  .closing h2 {
+    margin-bottom: 16px;
+  }
+
+  .closing p {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--ink);
+    margin-bottom: 14px;
+  }
+
+  /* ========== FOOTER ========== */
+  .footer {
+    margin-top: 56px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    color: var(--ink-faded);
+  }
+
+  .footer-block .label {
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .footer-block .value {
+    color: var(--ink);
+    font-family: 'Fraunces', serif;
+    font-size: 13px;
+    font-style: italic;
+    line-height: 1.4;
+  }
+
+  /* ========== RESPONSIVE ========== */
+  @media (max-width: 1024px) {
+    .sheet { padding: 40px 32px 56px; }
+    .stats-bar { grid-template-columns: repeat(3, 1fr); }
+    .spine-diagram, .joined-by, .flow-steps, .query-layers { grid-template-columns: 1fr 1fr; }
+    .principle-grid, .migrations { grid-template-columns: 1fr; }
+  }
+
+  @media (max-width: 720px) {
+    body { padding: 16px 12px 60px; }
+    .sheet { padding: 28px 20px 48px; }
+    h1 { font-size: 32px; }
+    .deck { font-size: 16px; }
+    h2 { font-size: 24px; }
+    .stats-bar { grid-template-columns: 1fr 1fr; }
+    .layer-row { grid-template-columns: 60px 1fr; gap: 14px; padding: 16px; }
+    .cross-cutting { grid-template-columns: 60px 1fr; gap: 14px; padding: 16px; }
+    .layer-side .num { font-size: 32px; }
+    .spine-diagram, .joined-by, .flow-steps, .query-layers { grid-template-columns: 1fr; }
+    .relationships { padding: 24px; }
+    .flow { padding: 24px; }
+    .footer { grid-template-columns: 1fr; gap: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sheet">
+
+  <!-- HEADER -->
+  <header class="doc-meta">
+    <div class="eyebrow">TomorrowLabs · Architectural Reference</div>
+    <div class="status">Data Architecture Map v1</div>
+  </header>
+
+  <h1>The <em>complete data architecture</em>, mapped.</h1>
+
+  <p class="deck">
+    Every table, every layer, every cross-cutting concern. This is the reference document for understanding what
+    TomorrowLabs's data infrastructure actually is — not what it aspires to be. A working map of the system as built.
+  </p>
+
+  <!-- STATS -->
+  <div class="stats-bar">
+    <div class="stat">
+      <div class="stat-num">4</div>
+      <div class="stat-label">Layers</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">65+</div>
+      <div class="stat-label">Tables</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">6</div>
+      <div class="stat-label">Migrations</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">20+</div>
+      <div class="stat-label">Strategic Views</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">7</div>
+      <div class="stat-label">Cross-cutting Concerns</div>
+    </div>
+  </div>
+
+  <!-- THE FULL ARCHITECTURE MAP -->
+  <section>
+    <div class="section-label">The Architecture · Top to Bottom</div>
+    <h2>Every table, in its <em>structural place</em>.</h2>
+
+    <p style="margin-bottom: 8px;">
+      The four-layer model with every actual table mapped to where it lives. Solid borders indicate tables with seed
+      data; dashed borders are pure schema waiting for population. Italic tables are views derived from the layer above.
+      Spine entities — the canonical reference points everything else joins to — are highlighted in moss green.
+    </p>
+
+    <div class="arch-map">
+
+      <!-- LAYER 4 -->
+      <div class="layer-row l4">
+        <div class="layer-side">
+          <div class="num">04</div>
+          <div class="tag">Decision Support</div>
+          <div class="name">Synthesized views</div>
+        </div>
+        <div class="table-groups">
+          <div class="table-group">
+            <div class="group-label">Protocols & Outcomes</div>
+            <div class="tables-list">
+              <span class="table-chip seeded">decision_protocols</span>
+              <span class="table-chip unseeded">decision_outcomes</span>
+              <span class="table-chip unseeded">ai_synthesis_runs</span>
+              <span class="table-chip seeded">metric_definitions</span>
+              <span class="table-chip seeded">dashboards</span>
+            </div>
+          </div>
+          <div class="table-group">
+            <div class="group-label">Strategic Views (Board & Leadership)</div>
+            <div class="tables-list">
+              <span class="table-chip view">board_state_summary</span>
+              <span class="table-chip view">quarterly_strategic_review</span>
+              <span class="table-chip view">language_strategic_scorecard</span>
+              <span class="table-chip view">exposure_dashboard</span>
+              <span class="table-chip view">protocols_due_for_review</span>
+              <span class="table-chip view">decision_learning_health</span>
+              <span class="table-chip view">partner_facing_accountability</span>
+            </div>
+          </div>
+          <div class="table-group">
+            <div class="group-label">Operational Views</div>
+            <div class="tables-list">
+              <span class="table-chip view">active_work_summary</span>
+              <span class="table-chip view">upcoming_obligations</span>
+              <span class="table-chip view">active_risk_dashboard</span>
+              <span class="table-chip view">program_financial_summary</span>
+              <span class="table-chip view">benefit_sharing_accountability</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LAYER 3 -->
+      <div class="layer-row l3">
+        <div class="layer-side">
+          <div class="num">03</div>
+          <div class="tag">Operational</div>
+          <div class="name">Active work</div>
+        </div>
+        <div class="table-groups">
+          <div class="table-group">
+            <div class="group-label">Programs & Deployments</div>
+            <div class="tables-list">
+              <span class="table-chip seeded">programs</span>
+              <span class="table-chip seeded">deployments</span>
+              <span class="table-chip seeded">products</span>
+            </div>
+          </div>
+          <div class="table-group">
+            <div class="group-label">Content & Users</div>
+            <div class="tables-list">
+              <span class="table-chip unseeded">content_items</span>
+              <span class="table-chip unseeded">users</span>
+              <span class="table-chip unseeded">user_households</span>
+            </div>
+          </div>
+          <div class="table-group">
+            <div class="group-label">Consent · Sits Above Operational</div>
+            <div class="tables-list">
+              <span class="table-chip unseeded">consent_records</span>
+            </div>
+          </div>
+          <div class="table-group">
+            <div class="group-label">Finance & Accountability</div>
+            <div class="tables-list">
+              <span class="table-chip unseeded">financial_flows</span>
+              <span class="table-chip unseeded">grants_active</span>
+              <span class="table-chip seeded">benefit_sharing_agreements</span>
+            </div>
+          </div>
+          <div class="table-group">
+            <div class="group-label">Team, Communications, Risk</div>
+            <div class="tables-list">
+              <span class="table-chip unseeded">team_members</span>
+              <span class="table-chip unseeded">communications</span>
+              <span class="table-chip seeded">operational_risks</span>
+              <span class="table-chip seeded">infrastructure_dependencies</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LAYER 2 -->
+      <div class="layer-row l2">
+        <div class="layer-side">
+          <div class="num">02</div>
+          <div class="tag">Observational</div>
+          <div class="name">The world over time</div>
+        </div>
+        <div class="table-groups">
+          <div class="table-group">
+            <div class="group-label">Meta-registry</div>
+            <div class="tables-list">
+              <span class="table-chip seeded">observation_registry</span>
+            </div>
+          </div>
+          <div class="table-group">
+            <div class="group-label">Place-level Observations</div>
+            <div class="tables-list">
+              <span class="table-chip unseeded">place_demographics</span>
+              <span class="table-chip unseeded">place_economic_indicators</span>
+              <span class="table-chip unseeded">place_infrastructure</span>
+              <span class="table-chip unseeded">place_regulatory_environment</span>
+              <span class="table-chip unseeded">place_cultural_calendar</span>
+              <span class="table-chip unseeded">place_health_safety</span>
+            </div>
+          </div>
+          <div class="table-group">
+            <div class="group-label">Cross-entity Dynamics</div>
+            <div class="tables-list">
+              <span class="table-chip seeded">migration_flows</span>
+              <span class="table-chip unseeded">language_place_presence</span>
+              <span class="table-chip unseeded">community_state</span>
+            </div>
+          </div>
+          <div class="table-group">
+            <div class="group-label">Technology & Sector Intelligence</div>
+            <div class="tables-list">
+              <span class="table-chip seeded">tech_readiness_history</span>
+              <span class="table-chip seeded">sector_events</span>
+              <span class="table-chip unseeded">funding_flows</span>
+              <span class="table-chip seeded">publications</span>
+            </div>
+          </div>
+          <div class="table-group">
+            <div class="group-label">Regulatory & Trust</div>
+            <div class="tables-list">
+              <span class="table-chip unseeded">regulatory_events</span>
+              <span class="table-chip unseeded">community_trust_signals</span>
+            </div>
+          </div>
+          <div class="table-group">
+            <div class="group-label">Language-specific (from earlier migrations)</div>
+            <div class="tables-list">
+              <span class="table-chip seeded">vitality_assessments</span>
+              <span class="table-chip unseeded">transmission_assessments</span>
+              <span class="table-chip unseeded">domain_usage</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LAYER 1 -->
+      <div class="layer-row l1">
+        <div class="layer-side">
+          <div class="num">01</div>
+          <div class="tag">Reference</div>
+          <div class="name">Canonical truth</div>
+        </div>
+        <div class="table-groups">
+          <div class="table-group spine">
+            <div class="group-label">★ The Spine · Canonical Entities</div>
+            <div class="tables-list">
+              <span class="table-chip spine seeded">languages</span>
+              <span class="table-chip spine seeded">places</span>
+              <span class="table-chip spine seeded">organizations</span>
+              <span class="table-chip spine seeded">communities</span>
+            </div>
+          </div>
+          <div class="table-group">
+            <div class="group-label">Language Details</div>
+            <div class="tables-list">
+              <span class="table-chip seeded">speaker_populations</span>
+              <span class="table-chip seeded">tech_readiness</span>
+              <span class="table-chip seeded">cultural_dimensions</span>
+              <span class="table-chip unseeded">orthographies</span>
+              <span class="table-chip unseeded">audio_corpora</span>
+              <span class="table-chip unseeded">documentation_status</span>
+              <span class="table-chip unseeded">institutional_support</span>
+              <span class="table-chip unseeded">geographic_concentrations</span>
+              <span class="table-chip unseeded">community_positions</span>
+              <span class="table-chip unseeded">reference_identifiers</span>
+            </div>
+          </div>
+          <div class="table-group">
+            <div class="group-label">Place Details (Layer 1 attributes)</div>
+            <div class="tables-list">
+              <span class="table-chip unseeded">organization_place_presence</span>
+            </div>
+          </div>
+          <div class="table-group">
+            <div class="group-label">Organization Details</div>
+            <div class="tables-list">
+              <span class="table-chip seeded">organization_relationships</span>
+              <span class="table-chip unseeded">organization_financial_profile</span>
+              <span class="table-chip unseeded">organization_programs</span>
+              <span class="table-chip unseeded">organization_interactions</span>
+            </div>
+          </div>
+          <div class="table-group">
+            <div class="group-label">Partnership State (TomorrowLabs-specific)</div>
+            <div class="tables-list">
+              <span class="table-chip seeded">field_partnerships</span>
+              <span class="table-chip seeded">funding_landscape</span>
+              <span class="table-chip seeded">revitalization_programs</span>
+              <span class="table-chip seeded">revitalization_summary</span>
+              <span class="table-chip seeded">product_status</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- CROSS-CUTTING (the foundation strip) -->
+      <div class="cross-cutting">
+        <div class="layer-side">
+          <div class="cc-num">00</div>
+          <div class="cc-tag">Cross-cutting</div>
+          <div class="cc-name">Infrastructure that serves every layer</div>
+        </div>
+        <div class="cc-content">
+          <div class="cc-tables">
+            <span class="table-chip seeded">sources</span>
+            <span class="table-chip seeded">decision_log</span>
+            <span class="table-chip">confidence_level <em>(enum)</em></span>
+            <span class="table-chip">audit trails <em>(timestamps everywhere)</em></span>
+            <span class="table-chip">identity resolution <em>(uuid PKs)</em></span>
+            <span class="table-chip">access control <em>(governance layer)</em></span>
+            <span class="table-chip">privacy <em>(consent infrastructure)</em></span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+      <div class="legend-item">
+        <span class="legend-chip" style="border-style: solid;">solid</span>
+        <span>Table has seed data — exists with examples</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-chip" style="border-style: dashed; color: var(--ink-faded);">dashed</span>
+        <span>Pure schema — awaiting population</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-chip" style="background: var(--slate-tint); border-color: var(--slate); font-style: italic;">▷ italic</span>
+        <span>SQL view (composed from underlying tables)</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-chip spine" style="background: var(--moss-tint); border-color: var(--moss); color: var(--moss-deep); font-weight: 600;">★ spine</span>
+        <span>Canonical reference entity (the four anchors)</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ENTITY RELATIONSHIPS -->
+  <section>
+    <div class="section-label">The Spine</div>
+    <h2>Four entities <em>everything else references</em>.</h2>
+
+    <p>
+      The four canonical reference entities are the anchors of the entire architecture. Every other table in the system
+      points back to one or more of these. Together they form the structural skeleton that lets the rest of the
+      architecture cohere.
+    </p>
+
+    <div class="relationships">
+      <div class="rel-title">The Canonical Reference Spine</div>
+
+      <div class="spine-diagram">
+        <div class="spine-entity">
+          <div class="entity-name">Languages</div>
+          <div class="entity-count">21 tables descend</div>
+        </div>
+        <div class="spine-entity">
+          <div class="entity-name">Places</div>
+          <div class="entity-count">12 tables descend</div>
+        </div>
+        <div class="spine-entity">
+          <div class="entity-name">Organizations</div>
+          <div class="entity-count">9 tables descend</div>
+        </div>
+        <div class="spine-entity">
+          <div class="entity-name">Communities</div>
+          <div class="entity-count">Cross-cuts all three</div>
+        </div>
+      </div>
+
+      <div class="spine-arrows">↓ joined by ↓</div>
+
+      <div class="joined-by">
+        <div class="joined-by-group">
+          <div class="joined-by-label">Demand</div>
+          <div class="joined-by-list">
+            <span class="table-chip">speaker_populations</span>
+            <span class="table-chip">migration_flows</span>
+            <span class="table-chip">geographic_concentrations</span>
+            <span class="table-chip">language_place_presence</span>
+          </div>
+        </div>
+        <div class="joined-by-group">
+          <div class="joined-by-label">Capability</div>
+          <div class="joined-by-list">
+            <span class="table-chip">tech_readiness</span>
+            <span class="table-chip">tech_readiness_history</span>
+            <span class="table-chip">documentation_status</span>
+            <span class="table-chip">audio_corpora</span>
+          </div>
+        </div>
+        <div class="joined-by-group">
+          <div class="joined-by-label">Partnership</div>
+          <div class="joined-by-list">
+            <span class="table-chip">field_partnerships</span>
+            <span class="table-chip">organization_relationships</span>
+            <span class="table-chip">benefit_sharing_agreements</span>
+            <span class="table-chip">community_trust_signals</span>
+          </div>
+        </div>
+        <div class="joined-by-group">
+          <div class="joined-by-label">Active Work</div>
+          <div class="joined-by-list">
+            <span class="table-chip">programs</span>
+            <span class="table-chip">deployments</span>
+            <span class="table-chip">content_items</span>
+            <span class="table-chip">product_status</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SAMPLE CROSS-LAYER QUERY -->
+  <section>
+    <div class="section-label">How the Layers Work Together</div>
+    <h2>A single strategic question, <em>across all four layers</em>.</h2>
+
+    <p>
+      The architectural value isn't in any single layer — it's in cross-layer queries that no single layer could answer
+      alone. Below is the kind of question Layer 4 supports, with the data inputs from each layer underneath.
+    </p>
+
+    <div class="sample-query">
+      <div class="query-label">Strategic Question</div>
+      <div class="query-text">
+        Which Wave 4 mission-track languages have moved into deployment readiness since Omnilingual, and where do we have
+        trusted partners with active programs that could deliver them?
+      </div>
+
+      <div class="query-layers">
+        <div class="query-layer l1">
+          <div class="query-layer-label">Layer 01 Reference</div>
+          <div class="query-layer-content">
+            languages<br/>
+            places<br/>
+            organizations<br/>
+            communities
+          </div>
+        </div>
+        <div class="query-layer l2">
+          <div class="query-layer-label">Layer 02 Observational</div>
+          <div class="query-layer-content">
+            tech_readiness_history<br/>
+            sector_events<br/>
+            migration_flows<br/>
+            community_trust_signals
+          </div>
+        </div>
+        <div class="query-layer l3">
+          <div class="query-layer-label">Layer 03 Operational</div>
+          <div class="query-layer-content">
+            organization_relationships<br/>
+            programs<br/>
+            deployments<br/>
+            benefit_sharing_agreements
+          </div>
+        </div>
+        <div class="query-layer l4">
+          <div class="query-layer-label">Layer 04 Decision Support</div>
+          <div class="query-layer-content">
+            tech_watershed_moments<br/>
+            deployment_readiness_assessment<br/>
+            language_strategic_scorecard<br/>
+            decision_protocols
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- THE DESIGN PRINCIPLES -->
+  <section>
+    <div class="section-label">Architectural Principles</div>
+    <h2>Six commitments <em>encoded structurally</em>.</h2>
+
+    <p>
+      Principles that hold across the entire architecture, not specific to any layer. These are the architectural
+      expressions of the data philosophy commitments.
+    </p>
+
+    <div class="principle-grid">
+      <div class="principle">
+        <div class="principle-num">01</div>
+        <h4>Every fact carries <em>provenance</em>.</h4>
+        <p>
+          The sources table is referenced by every observation, claim, and assessment. No floating facts. Citation is
+          structural, not aspirational.
+        </p>
+      </div>
+      <div class="principle">
+        <div class="principle-num">02</div>
+        <h4>Every fact carries <em>confidence</em>.</h4>
+        <p>
+          The confidence_level enum is on every table making claims. High, medium, low, estimated. Hidden gaps become
+          visible. Estimated data is honest data.
+        </p>
+      </div>
+      <div class="principle">
+        <div class="principle-num">03</div>
+        <h4>Consent sits <em>above</em> operational logic.</h4>
+        <p>
+          Layer 3 reads from consent_records but cannot override it. Operational pressure cannot erode community
+          commitments because the schema prevents it.
+        </p>
+      </div>
+      <div class="principle">
+        <div class="principle-num">04</div>
+        <h4>Time-series <em>never overwrite</em>.</h4>
+        <p>
+          Observational tables append, never update. A row added in 2026 stays unchanged in 2030. Trajectory becomes
+          visible because history is preserved.
+        </p>
+      </div>
+      <div class="principle">
+        <div class="principle-num">05</div>
+        <h4>Community positions are <em>first-class</em>.</h4>
+        <p>
+          When community classifications differ from academic ones, the schema records both. Disagreement is held
+          structurally, not flattened.
+        </p>
+      </div>
+      <div class="principle">
+        <div class="principle-num">06</div>
+        <h4>Decisions <em>close the loop</em>.</h4>
+        <p>
+          Every significant decision in decision_log is followed by an outcome assessment in decision_outcomes. The
+          organization remembers its reasoning and tests it against reality.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WAS BUILT -->
+  <section>
+    <div class="section-label">Build History</div>
+    <h2>How this got built, <em>migration by migration</em>.</h2>
+
+    <p>
+      The architecture was built in deliberate phases over six SQL migrations. Each migration produces value while
+      maintaining architectural coherence with what came before.
+    </p>
+
+    <div class="migrations">
+      <div class="migration">
+        <div class="migration-num">000</div>
+        <div class="migration-content">
+          <h5>Initial language database</h5>
+          <p>21 tables. Glottolog-anchored language spine with depth across demand, tech, culture, partnership.</p>
+        </div>
+      </div>
+      <div class="migration">
+        <div class="migration-num">001</div>
+        <div class="migration-content">
+          <h5>Omnilingual & CV updates</h5>
+          <p>Schema extensions for Meta Omnilingual ASR support and Mozilla Common Voice tracking.</p>
+        </div>
+      </div>
+      <div class="migration">
+        <div class="migration-num">002</div>
+        <div class="migration-content">
+          <h5>Language depth</h5>
+          <p>Vitality assessments, transmission tracking, orthographies, documentation status, revitalization programs.</p>
+        </div>
+      </div>
+      <div class="migration">
+        <div class="migration-num">003</div>
+        <div class="migration-content">
+          <h5>Phase 1 Spine extension</h5>
+          <p>Places, organizations, and communities as canonical reference entities. The architecture takes shape.</p>
+        </div>
+      </div>
+      <div class="migration">
+        <div class="migration-num">004</div>
+        <div class="migration-content">
+          <h5>Layer 2 Observational</h5>
+          <p>Time-series tracking across migration, sector events, tech evolution, funding flows, regulatory changes.</p>
+        </div>
+      </div>
+      <div class="migration">
+        <div class="migration-num">005</div>
+        <div class="migration-content">
+          <h5>Layer 3 Operational</h5>
+          <p>Programs, deployments, products, content, consent infrastructure, finance, team, risk registry.</p>
+        </div>
+      </div>
+      <div class="migration">
+        <div class="migration-num">006</div>
+        <div class="migration-content">
+          <h5>Layer 4 Decision Support</h5>
+          <p>Decision protocols, outcomes tracking, AI synthesis audit, strategic views, dashboard inventory.</p>
+        </div>
+      </div>
+      <div class="migration">
+        <div class="migration-num">∞</div>
+        <div class="migration-content">
+          <h5>Ongoing</h5>
+          <p>Layer 4 never finishes. New protocols emerge, views evolve, questions change. The architecture adapts.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- THE INTEGRATION FLOW -->
+  <div class="flow">
+    <div class="flow-title">Data flows up the stack. Decisions flow down.</div>
+    <div class="flow-deck">How information moves through the architecture in practice.</div>
+
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="step-num">i.</div>
+        <h5>Reference is curated.</h5>
+        <p>
+          Glottolog, GeoNames, and external sources feed Layer 1 through deliberate research. Slow, careful, citation-grade.
+        </p>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">ii.</div>
+        <h5>Observations accumulate.</h5>
+        <p>
+          Layer 2 grows as the world is observed. Each row is a moment in time, never overwritten. Trajectory becomes legible.
+        </p>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">iii.</div>
+        <h5>Operations run.</h5>
+        <p>
+          Layer 3 captures active work via integrations with Asana, Stripe, product analytics. References upward
+          but never overrides.
+        </p>
+      </div>
+      <div class="flow-step">
+        <div class="step-num">iv.</div>
+        <h5>Decisions emerge.</h5>
+        <p>
+          Layer 4 synthesizes everything below into views and protocols. Decisions made here feed back as outcomes —
+          and the loop closes.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLOSING -->
+  <div class="closing">
+    <h2>This is the <em>complete architecture</em> as built.</h2>
+
+    <p>
+      What you see in this document is what TomorrowLabs's data infrastructure actually is — not a prospectus, not a
+      wishlist. Sixty-five tables across four layers, with seven cross-cutting concerns, six SQL migrations of work, and
+      twenty-plus strategic views. The schema is ready. The architecture is real.
+    </p>
+
+    <p>
+      What this map doesn't show is the work ahead. Most tables are sparsely populated. Most strategic views are
+      structurally correct but data-poor. The architecture's value compounds with use — each populated row, each executed
+      protocol, each closed decision loop makes the whole more useful.
+    </p>
+
+    <p>
+      The next year is about populating what's been designed. Year two is about refining what's been used. The
+      multi-generational horizon is about the architecture outlasting the organization that built it. The structure is
+      designed for that scale of time. The data work begins now.
+    </p>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-block">
+      <div class="label">Document</div>
+      <div class="value">Data Architecture Map v1</div>
+    </div>
+    <div class="footer-block">
+      <div class="label">Owner</div>
+      <div class="value">Weston, TomorrowLabs</div>
+    </div>
+    <div class="footer-block">
+      <div class="label">Next Review</div>
+      <div class="value">August 2026, with population progress</div>
+    </div>
+  </footer>
+
+</div>
+
+</body>
+</html>

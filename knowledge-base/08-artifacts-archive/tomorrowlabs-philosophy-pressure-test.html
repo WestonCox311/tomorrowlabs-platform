@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TomorrowLabs · Data Philosophy Pressure-Test</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --paper: #F7F4ED;
+    --paper-warm: #FAF6EC;
+    --ink: #1A1614;
+    --ink-soft: #4A413B;
+    --ink-faded: #8A7F76;
+    --line: #C8BFB1;
+    --moss: #2D5F3F;
+    --moss-tint: #E8F0EB;
+    --rust: #B85C2E;
+    --rust-deep: #8B3F1C;
+    --rust-tint: #F4E8E0;
+    --clay: #C49968;
+    --shadow: rgba(26, 22, 20, 0.06);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Fraunces', Georgia, serif;
+    line-height: 1.55;
+    min-height: 100vh;
+    padding: 32px 24px 80px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet {
+    max-width: 920px;
+    margin: 0 auto;
+    background: var(--paper-warm);
+    border: 1px solid var(--ink);
+    padding: 64px 72px 80px;
+    position: relative;
+    box-shadow: 0 1px 0 var(--ink), 0 2px 32px var(--shadow);
+  }
+
+  .sheet::before,
+  .sheet::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: 1.5px solid var(--ink);
+  }
+  .sheet::before {
+    top: -1px;
+    left: -1px;
+    border-right: none;
+    border-bottom: none;
+  }
+  .sheet::after {
+    bottom: -1px;
+    right: -1px;
+    border-left: none;
+    border-top: none;
+  }
+
+  /* HEADER */
+  .doc-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 40px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .doc-meta .eyebrow {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--rust-deep);
+    font-weight: 700;
+  }
+
+  .doc-meta .status {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faded);
+    font-weight: 500;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 52px;
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 24px;
+    color: var(--ink);
+  }
+
+  h1 em {
+    font-style: italic;
+    color: var(--rust-deep);
+    font-weight: 400;
+  }
+
+  .deck {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    font-style: italic;
+    color: var(--ink-soft);
+    line-height: 1.55;
+    max-width: 680px;
+    margin-bottom: 24px;
+    font-weight: 300;
+  }
+
+  .framing {
+    background: var(--rust-tint);
+    border-left: 3px solid var(--rust);
+    padding: 24px 28px;
+    margin-bottom: 56px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+  }
+
+  .framing strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* CRITIQUE BLOCKS */
+  .critique {
+    margin-bottom: 56px;
+    border: 1px solid var(--ink);
+    background: #FFFFFF;
+  }
+
+  .critique-header {
+    background: var(--ink);
+    color: var(--paper-warm);
+    padding: 20px 32px;
+    display: flex;
+    align-items: baseline;
+    gap: 20px;
+  }
+
+  .critique-num {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 28px;
+    font-weight: 400;
+    color: var(--clay);
+    line-height: 1;
+  }
+
+  .critique-title {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 500;
+    line-height: 1.25;
+    flex: 1;
+  }
+
+  .critique-body {
+    padding: 32px 36px;
+  }
+
+  .voice-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .voice-label::before {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 1.5px;
+  }
+
+  .voice-critic .voice-label {
+    color: var(--rust-deep);
+  }
+
+  .voice-critic .voice-label::before {
+    background: var(--rust-deep);
+  }
+
+  .voice-response .voice-label {
+    color: var(--moss);
+  }
+
+  .voice-response .voice-label::before {
+    background: var(--moss);
+  }
+
+  .voice-block {
+    margin-bottom: 28px;
+  }
+
+  .voice-block:last-child {
+    margin-bottom: 0;
+  }
+
+  .voice-block p {
+    font-size: 15px;
+    line-height: 1.65;
+    color: var(--ink);
+    margin-bottom: 12px;
+  }
+
+  .voice-block p:last-child {
+    margin-bottom: 0;
+  }
+
+  .voice-block p strong {
+    font-weight: 600;
+  }
+
+  .voice-block em {
+    font-style: italic;
+  }
+
+  .voice-critic .voice-content {
+    padding-left: 16px;
+    border-left: 2px solid var(--rust);
+    margin-bottom: 28px;
+  }
+
+  .voice-response .voice-content {
+    padding-left: 16px;
+    border-left: 2px solid var(--moss);
+    background: var(--moss-tint);
+    padding: 20px 24px;
+  }
+
+  /* THE HARDEST CRITIQUE */
+  .hardest {
+    background: var(--ink);
+    color: var(--paper-warm);
+    padding: 40px 44px;
+    margin: 64px -8px;
+    position: relative;
+  }
+
+  .hardest::before {
+    content: 'The hardest critique';
+    position: absolute;
+    top: -10px;
+    left: 32px;
+    background: var(--rust);
+    color: var(--paper);
+    padding: 4px 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .hardest h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 28px;
+    font-weight: 500;
+    line-height: 1.2;
+    color: var(--paper-warm);
+    margin-bottom: 24px;
+    font-style: italic;
+  }
+
+  .hardest p {
+    font-size: 15px;
+    line-height: 1.7;
+    color: var(--paper-warm);
+    margin-bottom: 14px;
+    opacity: 0.92;
+  }
+
+  .hardest p:last-child {
+    margin-bottom: 0;
+  }
+
+  .hardest strong {
+    color: var(--clay);
+    font-weight: 600;
+  }
+
+  /* WHAT WE WOULD CHANGE */
+  .changes {
+    background: var(--moss-tint);
+    border: 1px solid var(--moss);
+    padding: 36px 40px;
+    margin-top: 56px;
+  }
+
+  .changes-header {
+    margin-bottom: 24px;
+    padding-bottom: 14px;
+    border-bottom: 1px dotted var(--moss);
+  }
+
+  .changes-header h2 {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 24px;
+    font-weight: 500;
+    color: var(--moss);
+    margin-bottom: 6px;
+  }
+
+  .changes-header .subtitle {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--moss);
+    font-weight: 600;
+  }
+
+  .changes-list {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .change-item {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .change-marker {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 18px;
+    color: var(--moss);
+    line-height: 1.3;
+    font-weight: 500;
+  }
+
+  .change-text {
+    font-family: 'Fraunces', serif;
+    font-size: 15px;
+    line-height: 1.55;
+    color: var(--ink);
+  }
+
+  .change-text strong {
+    font-weight: 600;
+  }
+
+  /* CLOSING */
+  .closing {
+    margin-top: 64px;
+    padding-top: 40px;
+    border-top: 2px solid var(--ink);
+  }
+
+  .closing h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 28px;
+    font-weight: 400;
+    line-height: 1.2;
+    margin-bottom: 18px;
+    color: var(--ink);
+  }
+
+  .closing h2 em {
+    font-style: italic;
+    color: var(--moss);
+  }
+
+  .closing p {
+    font-size: 16px;
+    line-height: 1.7;
+    color: var(--ink);
+    margin-bottom: 14px;
+  }
+
+  /* FOOTER */
+  .footer {
+    margin-top: 56px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    color: var(--ink-faded);
+  }
+
+  .footer-block .label {
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .footer-block .value {
+    color: var(--ink);
+    font-family: 'Fraunces', serif;
+    font-size: 13px;
+    font-style: italic;
+    line-height: 1.4;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    body { padding: 16px 12px 60px; }
+    .sheet { padding: 36px 28px 48px; }
+    h1 { font-size: 32px; }
+    .deck { font-size: 16px; }
+    .critique-header { padding: 16px 20px; flex-direction: column; gap: 6px; }
+    .critique-title { font-size: 17px; }
+    .critique-body { padding: 24px; }
+    .hardest { padding: 28px 24px; margin: 40px -4px; }
+    .hardest h2 { font-size: 22px; }
+    .changes { padding: 24px 20px; }
+    .footer { grid-template-columns: 1fr; gap: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sheet">
+
+  <header class="doc-meta">
+    <div class="eyebrow">TomorrowLabs · Adversarial Review</div>
+    <div class="status">Companion to Data Philosophy v1</div>
+  </header>
+
+  <h1>The strongest <em>critique</em> we can write of ourselves.</h1>
+
+  <p class="deck">
+    Six challenges from a sophisticated, skeptical reviewer. Each one taken seriously. Each one answered honestly,
+    including where the answer is "they're right and we need to change."
+  </p>
+
+  <div class="framing">
+    <p>
+      <strong>Who is this critic?</strong> Imagine a composite of three readers: a senior linguist with twenty years of
+      community partnership experience who has watched well-meaning projects flatten the communities they meant to serve;
+      a foundation program officer who has funded language preservation for fifteen years and learned to distrust elegant
+      pitches; and a community member from a language TomorrowLabs hopes to work with, reading the philosophy and asking
+      whether it actually protects them.
+    </p>
+    <p style="margin-top: 12px;">
+      The critique below is the document those three readers would write if asked to be brutally honest. The responses
+      are written in TomorrowLabs's voice — sometimes pushing back, sometimes conceding, always trying to be more honest
+      than comfortable.
+    </p>
+  </div>
+
+  <!-- CRITIQUE 01 -->
+  <div class="critique">
+    <div class="critique-header">
+      <div class="critique-num">01</div>
+      <div class="critique-title">"Glottolog as tool, not truth" is a slogan. Show me the mechanism.</div>
+    </div>
+    <div class="critique-body">
+
+      <div class="voice-block voice-critic">
+        <div class="voice-label">The critic</div>
+        <div class="voice-content">
+          <p>
+            You wrote a beautiful sentence about Glottolog being a tool rather than truth. I have read versions of this sentence
+            in two dozen language preservation pitches over the years. It is almost always followed by a project that uses
+            academic classifications as default and treats community pushback as an exception to be handled case-by-case.
+          </p>
+          <p>
+            What is the <em>mechanism</em> by which community disagreement actually changes what your product does? Not what your
+            schema records — what your product <em>does</em>. If a K'iche' community partner tells you tomorrow that your
+            classification is wrong, what specifically happens? Who has authority to override Glottolog? On what timeline? With
+            what budget? If the answer is "we'll record their position in the community_positions table," you have not given
+            them power, you have given them a comment box.
+          </p>
+          <p>
+            A schema is not a politics. A community position with no operational consequence is a footnote.
+          </p>
+        </div>
+      </div>
+
+      <div class="voice-block voice-response">
+        <div class="voice-label">TomorrowLabs's response</div>
+        <div class="voice-content">
+          <p>
+            This is the strongest critique in the document and it is correct. The current schema records disagreement; it does
+            not yet operationalize it. The community_positions table is necessary but insufficient.
+          </p>
+          <p>
+            <strong>What we are committing to in response:</strong> by Q4 2026, every product that displays language metadata will
+            have a community-override mechanism that affects what the product displays, not just what the database records. If a
+            community says their language is named differently than Glottolog's preferred form, our products will use the community
+            name, with the academic name as secondary metadata visible only to researchers. If a community says a variety is its own
+            language, our product treats it as its own language — separate product_status row, separate visual identity, separate
+            content track.
+          </p>
+          <p>
+            <strong>What we are not committing to:</strong> giving every individual claiming community authority unilateral override
+            of academic classification. We will need governance structures for who counts as community authority in cases of
+            internal disagreement. That governance is itself contested and we do not have a clean answer yet.
+          </p>
+          <p>
+            The critic is right that we wrote a sentence. The sentence needs to become a mechanism. The work to make that true
+            is on our roadmap and we will not consider the philosophy honest until it is done.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CRITIQUE 02 -->
+  <div class="critique">
+    <div class="critique-header">
+      <div class="critique-num">02</div>
+      <div class="critique-title">Your "data flywheel" extracts from communities and rewards you. Name the asymmetry.</div>
+    </div>
+    <div class="critique-body">
+
+      <div class="voice-block voice-critic">
+        <div class="voice-label">The critic</div>
+        <div class="voice-content">
+          <p>
+            The platform thesis you describe — communities contribute audio recordings, recordings train models, improved models
+            attract more communities — is structurally identical to how Big Tech accumulated language data over the past decade.
+            The Cambodian grandmother contributes her stories. The corpus improves Khmer ASR. The improved ASR makes Babagigi more
+            valuable. The added value accrues to TomorrowLabs's enterprise valuation and to whichever vendor's API you're calling.
+          </p>
+          <p>
+            You will tell me about benefit-sharing. I have read benefit-sharing language in dozens of projects. In practice it
+            often means: communities get free access to the product they helped build, and the organization keeps the upside.
+            That is not benefit-sharing. That is "we let you use the thing you made."
+          </p>
+          <p>
+            <strong>If this is genuinely different, prove it with money flow.</strong> What percentage of TomorrowLabs revenue
+            attributable to a language goes back to that language's community? Is there a written formula? Is it enforceable?
+            Is it audited? Or is it discretionary, which means it will be discretionary downward when there is pressure on margins?
+          </p>
+        </div>
+      </div>
+
+      <div class="voice-block voice-response">
+        <div class="voice-label">TomorrowLabs's response</div>
+        <div class="voice-content">
+          <p>
+            This critique cuts deeper than the philosophy currently answers. We have written about benefit-sharing as a principle.
+            We have not yet committed to a formula.
+          </p>
+          <p>
+            <strong>The honest current state:</strong> TomorrowLabs is a for-profit entity with a nonprofit arm in formation. The
+            two-entity model is partly an attempt to address exactly this asymmetry — the commercial arm pays for itself, the
+            nonprofit arm holds community-co-owned assets. But that structure is still aspirational. As of today, there is no
+            written formula for what percentage of Babagigi revenue from a Khmer family flows back to Khmer-language preservation
+            work, and the critic is right to call that out.
+          </p>
+          <p>
+            <strong>What we will commit to by Q2 2027:</strong> a published benefit-sharing framework with specific percentages,
+            applied per language, audited annually, enforceable through partnership agreements. We do not yet know what the right
+            percentages are. We will not pretend we do. We will work them out with the first three community partners — Cambodia,
+            Guatemala, Mexico — and publish what we land on, including the disagreements we had to resolve.
+          </p>
+          <p>
+            <strong>What we cannot commit to:</strong> that this will be easy or unanimous. Different communities will want
+            different structures. Some will want money. Some will want infrastructure investment. Some will want governance roles.
+            The framework needs to hold all of that without collapsing to the easiest single answer. That work is underway and
+            the philosophy as written underspecifies it.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CRITIQUE 03 -->
+  <div class="critique">
+    <div class="critique-header">
+      <div class="critique-num">03</div>
+      <div class="critique-title">You're building a research database while pretending it's a product company.</div>
+    </div>
+    <div class="critique-body">
+
+      <div class="voice-block voice-critic">
+        <div class="voice-label">The critic</div>
+        <div class="voice-content">
+          <p>
+            Look at what you are actually building. Twenty-one tables. EGIDS classifications. Time-series transmission assessments.
+            Glottolog integration. PHOIBLE cross-references. This is the data architecture of a research institute, not a consumer
+            products company. The schema dwarfs anything Babagigi v1 will actually need.
+          </p>
+          <p>
+            Either (a) you are over-engineering at a stage when scrappy iteration is more important than schema purity, which will
+            cost you product velocity, or (b) you are quietly transitioning from a startup into a research organization without
+            being honest with your investors about what they are funding. Either way, the philosophy obscures the actual identity
+            of the organization.
+          </p>
+          <p>
+            Pick. Are you Mozilla Common Voice with a product attached, or are you a consumer startup that happens to use language
+            data? Because the philosophy reads like the former while your fundraising probably presents the latter.
+          </p>
+        </div>
+      </div>
+
+      <div class="voice-block voice-response">
+        <div class="voice-label">TomorrowLabs's response</div>
+        <div class="voice-content">
+          <p>
+            The critic is pointing at something real, but the framing forces a false binary. The honest answer is: we are
+            <em>both</em>, and that is intentional, and the philosophy is the bridge between the two.
+          </p>
+          <p>
+            <strong>What we are not:</strong> a pure consumer products company that will optimize for speed-to-market and treat
+            data infrastructure as overhead. If we were that, we would be wrong to take community partnership work seriously, and
+            the schema would be vanity engineering. We are not that.
+          </p>
+          <p>
+            <strong>What we are not:</strong> a pure research institute that produces papers and datasets without commercial
+            accountability. If we were that, Babagigi and LDL would be research demos, not products people pay for. We are not that
+            either.
+          </p>
+          <p>
+            <strong>What we are:</strong> a hybrid organization that uses commercial product success to fund research-grade
+            infrastructure, which in turn makes the products more defensible and the mission more credible. The schema is not
+            over-engineering for Babagigi v1. It is right-sized engineering for what Babagigi v1 needs to mean over time.
+          </p>
+          <p>
+            <strong>Where the critic is right:</strong> we have not always been clear about this with investors. The pitch needs to
+            include the hybrid model explicitly, including the productivity tax that comes with treating data infrastructure as
+            research-grade rather than minimum-viable. An investor who wants a faster company without that overhead should fund a
+            different company. We need to be willing to say that.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CRITIQUE 04 -->
+  <div class="critique">
+    <div class="critique-header">
+      <div class="critique-num">04</div>
+      <div class="critique-title">You're claiming a multi-generational commitment from a four-person startup.</div>
+    </div>
+    <div class="critique-body">
+
+      <div class="voice-block voice-critic">
+        <div class="voice-label">The critic</div>
+        <div class="voice-content">
+          <p>
+            The philosophy ends with a commitment to grandchildren in 2080. That is moving rhetoric. It is also, frankly,
+            presumptuous. Most startups die. Most product companies pivot away from their founding mission within five years.
+            Most data archives degrade, lose institutional support, and become inaccessible within twenty.
+          </p>
+          <p>
+            What is the actual <em>institutional design</em> that would make a multi-generational commitment more than a promise?
+            What happens to the corpus if TomorrowLabs runs out of money in 2028? Who has fiduciary responsibility for the data
+            in 2045 when none of the founders are involved? Where is the irrevocable trust structure, the perpetual license
+            agreement, the partnership with an institution that has institutional momentum across centuries?
+          </p>
+          <p>
+            Without that, "multi-generational commitment" is marketing copy. The grandmother who records her stories deserves better
+            than marketing copy.
+          </p>
+        </div>
+      </div>
+
+      <div class="voice-block voice-response">
+        <div class="voice-label">TomorrowLabs's response</div>
+        <div class="voice-content">
+          <p>
+            The critic is right that the multi-generational commitment, as currently written, is aspirational rather than
+            structurally durable. We have not yet built the institutional design that would make the promise enforceable across
+            decades.
+          </p>
+          <p>
+            <strong>What we will do in response:</strong> by end of 2027, every audio corpus contributed to TomorrowLabs will have
+            a designated long-term archive partner outside our control. PARADISEC, ELAR, university linguistics departments, or
+            community-controlled archives, depending on what each community partner chooses. The recordings live in at least two
+            places, one of which is not TomorrowLabs. If TomorrowLabs disappears, the recordings do not.
+          </p>
+          <p>
+            <strong>The harder commitment:</strong> we will draft, by Q4 2027, a "sunset clause" — a legally binding document
+            describing what happens to TomorrowLabs's data assets if the organization fails. Default ownership transitions to a
+            named successor institution. Community-contributed data reverts to community ownership. Licenses are pre-negotiated
+            with archive partners. This is the closest a four-person startup can come to multi-generational durability and we have
+            not yet done the legal work.
+          </p>
+          <p>
+            <strong>What we cannot promise:</strong> that we will not fail. Most organizations like ours do. The honest version of
+            the commitment is: <em>we are building so that our failure does not also destroy what was entrusted to us.</em> That is
+            different from promising perpetuity. It is more truthful, and the philosophy should say so.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CRITIQUE 05 -->
+  <div class="critique">
+    <div class="critique-header">
+      <div class="critique-num">05</div>
+      <div class="critique-title">"Confidence as first-class data" doesn't fix bias. It just labels it.</div>
+    </div>
+    <div class="critique-body">
+
+      <div class="voice-block voice-critic">
+        <div class="voice-label">The critic</div>
+        <div class="voice-content">
+          <p>
+            You wrote that every fact carries a confidence level. Useful. But confidence labels do not address the deeper problem:
+            <em>which</em> facts even make it into your database in the first place. Your seed data is heavily skewed toward US
+            diaspora languages where census data is abundant. The languages with the worst data are also the languages with the
+            most urgent transmission risk, and they will appear in your database with "estimated" tags or not at all.
+          </p>
+          <p>
+            Confidence levels make you feel better about the gaps. They do not close them. And worse, the gaps are not random —
+            they correlate with the languages you should be most attentive to. The Mixtec varieties spoken by a few thousand
+            people each in Oaxacan villages will have no census coverage, no published vitality assessment, no Common Voice data.
+            Your database will know more about Italian than about the languages that need it most.
+          </p>
+          <p>
+            That is not just a data quality issue. It is a values issue. Your infrastructure will quietly reproduce the
+            inequalities of the academic and governmental data ecosystem you are inheriting from.
+          </p>
+        </div>
+      </div>
+
+      <div class="voice-block voice-response">
+        <div class="voice-label">TomorrowLabs's response</div>
+        <div class="voice-content">
+          <p>
+            This is correct and it is one of the things that wakes me up at three in the morning. The data infrastructure cannot
+            be neutral about which languages it knows well, because the world we are inheriting is not neutral.
+          </p>
+          <p>
+            <strong>Two responses:</strong>
+          </p>
+          <p>
+            First, the database design intentionally surfaces gaps rather than hiding them. The <em>data_coverage_gaps</em> view
+            we built explicitly flags languages where speaker data, tech data, or cultural data is missing or stale. A funder or
+            researcher querying our database can see immediately that we know less about K'iche' than about French, and that the
+            relative knowledge gap is itself a research output. We are not hiding the asymmetry. We are making it visible.
+          </p>
+          <p>
+            Second, the field partnership work is the corrective mechanism, not the database itself. The Cambodia, Guatemala, and
+            Mexico deployments are explicitly designed to generate data for languages the global data ecosystem under-serves. If
+            those deployments succeed, our database will become an unusually strong source for some Wave 4 languages — precisely
+            because we will have collected the data ourselves, with community consent, that no one else collected.
+          </p>
+          <p>
+            <strong>Where the critic is still right:</strong> until those partnerships produce data, our database will be lopsided.
+            We need to be careful not to draw confident conclusions from lopsided data. The philosophy should say this explicitly,
+            and currently does not. The next revision will include a commitment to explicit "epistemic asymmetry warnings" on any
+            comparative claim across languages where the data quality differs substantially between them.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CRITIQUE 06 -->
+  <div class="critique">
+    <div class="critique-header">
+      <div class="critique-num">06</div>
+      <div class="critique-title">Where is the community in the writing of this document?</div>
+    </div>
+    <div class="critique-body">
+
+      <div class="voice-block voice-critic">
+        <div class="voice-label">The critic</div>
+        <div class="voice-content">
+          <p>
+            This is a philosophy document <em>about</em> communities, written entirely by TomorrowLabs, for an audience that is
+            mostly other Western organizations — funders, board members, future hires. The communities whose languages you
+            propose to serve are referenced but absent. They did not draft this. They did not review it. They cannot edit it.
+          </p>
+          <p>
+            The document does the thing it claims to be against. It uses the voice of institutional authority to make commitments
+            on behalf of communities who were not in the room. Even the most well-intentioned version of this is a colonial
+            gesture in slow motion.
+          </p>
+          <p>
+            What would it look like for community partners to actually co-author the philosophy? Not just review a draft, but
+            shape what gets said? You do not have to have done this yet, but you should be willing to say that the current
+            document is provisional precisely because they were not part of writing it.
+          </p>
+        </div>
+      </div>
+
+      <div class="voice-block voice-response">
+        <div class="voice-label">TomorrowLabs's response</div>
+        <div class="voice-content">
+          <p>
+            The critic is right and this critique is the one that lands hardest. The philosophy as drafted has the structural
+            problem the critic names: it speaks <em>about</em> community partnership in the voice of the partner who already holds
+            the institutional power. The document is currently a TomorrowLabs document about what TomorrowLabs commits to. That
+            is not the same as a partnership document about what communities and TomorrowLabs commit to together.
+          </p>
+          <p>
+            <strong>What we will do:</strong> the v1 of the philosophy will be explicitly labeled provisional. Within twelve months,
+            we will draft v2 with active co-authorship from at least one representative from each of our three primary partner
+            communities (Cambodia, Guatemala, Mexico). The drafting process itself is the work, not just the output. Communities
+            will have edit access to the document, not comment access.
+          </p>
+          <p>
+            <strong>What we will commit to as a permanent practice:</strong> every major TomorrowLabs strategic document — the
+            philosophy, the partnership agreements, the benefit-sharing framework — will go through community review before it is
+            considered final. Not consultation, which is a one-way information flow. Review, which means communities can require
+            changes and the document does not ship without their assent.
+          </p>
+          <p>
+            <strong>What we cannot promise:</strong> that this will produce one coherent voice. Different communities will want
+            different things. The document will get more complicated. That is the right kind of complication. The simpler version
+            we wrote first reflects who was in the room, not what is true.
+          </p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- THE HARDEST CRITIQUE -->
+  <div class="hardest">
+    <h2>"You wrote a philosophy because it makes the work easier to fundraise, not because it changed the work."</h2>
+    <p>
+      This is the critique that the others sit on top of. Every one of the responses above commits TomorrowLabs to additional
+      work, additional governance, additional accountability. None of that work is finished. The document presents commitments
+      as if they were positions.
+    </p>
+    <p>
+      A skeptic could read this entire pressure-test and say: <strong>fine, you've added six more aspirational commitments to
+      cover six gaps in the original philosophy. What changed about how you operate today?</strong> The criticism would be that
+      the very practice of writing pressure-tests is itself a way of looking sophisticated about one's own shortcomings without
+      actually fixing them.
+    </p>
+    <p>
+      The honest answer is that some of what this document commits to will get done, and some won't. The benefit-sharing formula
+      probably will, because partners will require it. The community co-authorship of v2 probably will, because we will be
+      embarrassed if it doesn't. The sunset clause and irrevocable archive partnerships are harder, slower, and less visible —
+      they may slip.
+    </p>
+    <p>
+      The way to know whether this is real or theater is to look in eighteen months at <strong>which of these commitments got
+      done, which were quietly dropped, and which were renegotiated in our own favor.</strong> Not what we wrote. What we
+      finished. We are going to print this critique alongside the philosophy and revisit it annually.
+    </p>
+    <p>
+      If the answer in eighteen months is "we wrote the document and then operated as if we hadn't," the critic was right and
+      we should be told so.
+    </p>
+  </div>
+
+  <!-- WHAT WE WOULD CHANGE -->
+  <div class="changes">
+    <div class="changes-header">
+      <div class="subtitle">What this critique changes</div>
+      <h2>Updates to the philosophy, owed by Q1 2027.</h2>
+    </div>
+
+    <div class="changes-list">
+      <div class="change-item">
+        <div class="change-marker">i.</div>
+        <div class="change-text">
+          <strong>Mark the philosophy v1 as provisional pending community co-authorship.</strong> Update the header. Add a note
+          about who was and was not in the room when it was drafted.
+        </div>
+      </div>
+      <div class="change-item">
+        <div class="change-marker">ii.</div>
+        <div class="change-text">
+          <strong>Add a section on operational mechanisms.</strong> Each belief needs a paragraph describing how it actually
+          changes what TomorrowLabs products do, not just what the database records.
+        </div>
+      </div>
+      <div class="change-item">
+        <div class="change-marker">iii.</div>
+        <div class="change-text">
+          <strong>Add a benefit-sharing commitment with a deadline.</strong> Q2 2027: published framework with specific
+          percentages, applied per language, audited annually.
+        </div>
+      </div>
+      <div class="change-item">
+        <div class="change-marker">iv.</div>
+        <div class="change-text">
+          <strong>Add an institutional durability section.</strong> The grandchild-in-2080 paragraph needs to be replaced with
+          concrete commitments to external archive partners and a sunset clause.
+        </div>
+      </div>
+      <div class="change-item">
+        <div class="change-marker">v.</div>
+        <div class="change-text">
+          <strong>Add an "epistemic asymmetry" caveat to any comparative claim.</strong> When TomorrowLabs publishes data
+          comparing languages with materially different data quality, the comparison is annotated with the asymmetry.
+        </div>
+      </div>
+      <div class="change-item">
+        <div class="change-marker">vi.</div>
+        <div class="change-text">
+          <strong>Publish this critique alongside the philosophy.</strong> Not as an appendix that signals humility. As a
+          structural commitment that the philosophy is incomplete and we are accountable for what we said we would fix.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLOSING -->
+  <div class="closing">
+    <h2>The point of this exercise is <em>not</em> to be impressive.</h2>
+    <p>
+      The point is to put the critique into our own hands before it lands in someone else's. Every one of these challenges
+      will arrive eventually — from a funder, a partner, a community member, a researcher reading our work. Better that we
+      have already wrestled with it than that we have to learn the answer in real time.
+    </p>
+    <p>
+      The philosophy is not weakened by this pressure-test. It is sharpened. The version of TomorrowLabs that pretends none
+      of these critiques apply is a version that will eventually be embarrassed publicly. The version that takes them
+      seriously is the version that earns the trust the work actually requires.
+    </p>
+    <p>
+      We are choosing the second version. The next eighteen months will show whether we meant it.
+    </p>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-block">
+      <div class="label">Document</div>
+      <div class="value">Data Philosophy Pressure-Test v1</div>
+    </div>
+    <div class="footer-block">
+      <div class="label">Owner</div>
+      <div class="value">Weston, TomorrowLabs</div>
+    </div>
+    <div class="footer-block">
+      <div class="label">Next Review</div>
+      <div class="value">November 2027 (with critique tracked)</div>
+    </div>
+  </footer>
+
+</div>
+
+</body>
+</html>

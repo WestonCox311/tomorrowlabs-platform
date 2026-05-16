@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TomorrowLabs · Data Philosophy</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --paper: #F7F4ED;
+    --paper-warm: #FAF6EC;
+    --ink: #1A1614;
+    --ink-soft: #4A413B;
+    --ink-faded: #8A7F76;
+    --line: #C8BFB1;
+    --moss: #2D5F3F;
+    --moss-light: #4A7B5A;
+    --moss-tint: #E8F0EB;
+    --rust: #B85C2E;
+    --rust-deep: #8B3F1C;
+    --clay: #C49968;
+    --clay-tint: #F0E4D2;
+    --gold: #A87D3F;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Fraunces', Georgia, serif;
+    line-height: 1.55;
+    min-height: 100vh;
+    padding: 32px 24px 80px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet {
+    max-width: 920px;
+    margin: 0 auto;
+    background: var(--paper-warm);
+    border: 1px solid var(--ink);
+    padding: 64px 72px 80px;
+    position: relative;
+    box-shadow: 0 1px 0 var(--ink), 0 2px 32px rgba(26, 22, 20, 0.05);
+    background-image:
+      radial-gradient(circle at 20% 15%, rgba(184, 92, 46, 0.025) 0%, transparent 50%),
+      radial-gradient(circle at 85% 75%, rgba(45, 95, 63, 0.03) 0%, transparent 55%);
+  }
+
+  /* Corner registration marks */
+  .sheet::before,
+  .sheet::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: 1.5px solid var(--ink);
+  }
+  .sheet::before {
+    top: -1px;
+    left: -1px;
+    border-right: none;
+    border-bottom: none;
+  }
+  .sheet::after {
+    bottom: -1px;
+    right: -1px;
+    border-left: none;
+    border-top: none;
+  }
+
+  /* ============ HEADER ============ */
+  .doc-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 48px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .doc-meta .eyebrow {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--moss);
+    font-weight: 700;
+  }
+
+  .doc-meta .status {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faded);
+    font-weight: 500;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 56px;
+    font-weight: 400;
+    line-height: 1.02;
+    letter-spacing: -0.02em;
+    margin-bottom: 24px;
+    color: var(--ink);
+  }
+
+  h1 em {
+    font-style: italic;
+    color: var(--moss);
+    font-weight: 400;
+  }
+
+  .deck {
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    font-style: italic;
+    color: var(--ink-soft);
+    line-height: 1.5;
+    max-width: 680px;
+    margin-bottom: 56px;
+    font-weight: 300;
+  }
+
+  /* ============ SECTIONS ============ */
+  section {
+    margin-bottom: 56px;
+  }
+
+  .section-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--rust-deep);
+    font-weight: 700;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-label::before {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    height: 1.5px;
+    background: var(--rust-deep);
+  }
+
+  h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 32px;
+    font-weight: 400;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    margin-bottom: 20px;
+    color: var(--ink);
+  }
+
+  h2 em {
+    font-style: italic;
+    color: var(--moss);
+  }
+
+  p {
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--ink);
+    margin-bottom: 16px;
+  }
+
+  p:last-child {
+    margin-bottom: 0;
+  }
+
+  strong {
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  em {
+    font-style: italic;
+  }
+
+  /* ============ THE BELIEFS ============ */
+  .beliefs {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    margin-top: 24px;
+  }
+
+  .belief {
+    padding: 28px 0;
+    border-bottom: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: 56px 1fr;
+    gap: 24px;
+    align-items: flex-start;
+  }
+
+  .belief:last-child {
+    border-bottom: none;
+  }
+
+  .belief-num {
+    font-family: 'Fraunces', serif;
+    font-size: 42px;
+    font-weight: 300;
+    font-style: italic;
+    color: var(--moss);
+    line-height: 1;
+    padding-top: 4px;
+  }
+
+  .belief-title {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 10px;
+    letter-spacing: -0.005em;
+    line-height: 1.25;
+  }
+
+  .belief-title em {
+    color: var(--moss);
+  }
+
+  .belief-body {
+    font-size: 15px;
+    line-height: 1.62;
+    color: var(--ink-soft);
+  }
+
+  .belief-body strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* ============ PULL QUOTE ============ */
+  .pullquote {
+    background: var(--moss-tint);
+    border-left: 3px solid var(--moss);
+    padding: 32px 36px;
+    margin: 48px 0;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 22px;
+    line-height: 1.4;
+    color: var(--moss);
+    font-weight: 400;
+  }
+
+  .pullquote::before {
+    content: '';
+    display: block;
+    width: 36px;
+    height: 1px;
+    background: var(--moss);
+    margin-bottom: 16px;
+    opacity: 0.5;
+  }
+
+  /* ============ COMMITMENTS ============ */
+  .commitments {
+    background: var(--clay-tint);
+    border: 1px solid var(--clay);
+    padding: 36px 40px;
+    margin-top: 24px;
+  }
+
+  .commitments-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px dotted var(--gold);
+  }
+
+  .commitments-header h3 {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--rust-deep);
+  }
+
+  .commitments-header span {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--rust-deep);
+    font-weight: 700;
+  }
+
+  .commitments-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .commitment {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 16px;
+    align-items: flex-start;
+  }
+
+  .commitment-marker {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 18px;
+    color: var(--rust);
+    line-height: 1.3;
+    font-weight: 500;
+  }
+
+  .commitment-text {
+    font-family: 'Fraunces', serif;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--ink);
+  }
+
+  .commitment-text strong {
+    font-weight: 600;
+  }
+
+  /* ============ THE HARD PART ============ */
+  .hard-part {
+    border-top: 2px solid var(--ink);
+    border-bottom: 2px solid var(--ink);
+    padding: 36px 0;
+    margin: 56px 0;
+  }
+
+  .hard-part p {
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--ink);
+  }
+
+  .hard-part p + p {
+    margin-top: 14px;
+  }
+
+  /* ============ FOOTER ============ */
+  .footer {
+    margin-top: 64px;
+    padding-top: 32px;
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    color: var(--ink-faded);
+  }
+
+  .footer-block .label {
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .footer-block .value {
+    color: var(--ink);
+    font-family: 'Fraunces', serif;
+    font-size: 13px;
+    font-style: italic;
+    line-height: 1.4;
+  }
+
+  /* ============ RESPONSIVE ============ */
+  @media (max-width: 768px) {
+    body { padding: 16px 12px 60px; }
+    .sheet { padding: 36px 28px 48px; }
+    h1 { font-size: 36px; }
+    .deck { font-size: 16px; }
+    h2 { font-size: 24px; }
+    .belief { grid-template-columns: 36px 1fr; gap: 16px; }
+    .belief-num { font-size: 28px; }
+    .belief-title { font-size: 17px; }
+    .pullquote { padding: 24px; font-size: 17px; margin: 32px 0; }
+    .commitments { padding: 24px 20px; }
+    .footer { grid-template-columns: 1fr; gap: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sheet">
+
+  <!-- HEADER -->
+  <header class="doc-meta">
+    <div class="eyebrow">TomorrowLabs · Foundational Document</div>
+    <div class="status">Data Philosophy · v1</div>
+  </header>
+
+  <h1>How we treat <em>language</em> as data.</h1>
+
+  <p class="deck">
+    A short articulation of what TomorrowLabs believes about the data we collect, the people whose languages it represents,
+    and the responsibility that comes with holding both.
+  </p>
+
+  <!-- THE PREMISE -->
+  <section>
+    <div class="section-label">The Premise</div>
+    <h2>Languages are <em>living infrastructure</em>. So is the data about them.</h2>
+    <p>
+      Languages are not abstractions. They are the way grandparents tell grandchildren who they are. They are the texture of
+      a Saturday morning at a Khmer temple in Long Beach, of a K'iche' market in Sololá, of a phone call between a Cambodian
+      mother in Portland and her sister in Phnom Penh. To preserve a language is to preserve the possibility of those
+      moments — and to <em>document</em> a language is to record evidence of them.
+    </p>
+    <p>
+      That dual nature — language as lived practice and language as recorded data — sits at the center of what TomorrowLabs
+      does. We build products that help families and communities sustain the lived practice. We maintain infrastructure that
+      treats the recorded data with the care it deserves. These are not two missions. They are one mission, viewed from
+      two distances.
+    </p>
+  </section>
+
+  <!-- THE BELIEFS -->
+  <section>
+    <div class="section-label">What We Believe</div>
+    <h2>Seven commitments about the data layer.</h2>
+
+    <div class="beliefs">
+
+      <div class="belief">
+        <div class="belief-num">01</div>
+        <div>
+          <div class="belief-title">Languages exist in <em>hierarchies</em>, not lists.</div>
+          <div class="belief-body">
+            A flat catalog of languages flattens reality. Mandarin and Cantonese are not the same kind of thing as their
+            shared label "Chinese." Mixtec is not one language. We model languages at the granularity that matters —
+            macrolanguage, language, variety, dialect — so the data can hold what's actually true.
+          </div>
+        </div>
+      </div>
+
+      <div class="belief">
+        <div class="belief-num">02</div>
+        <div>
+          <div class="belief-title">Confidence is a <em>first-class</em> data type.</div>
+          <div class="belief-body">
+            Every fact we record carries an explicit confidence level: <strong>high, medium, low,</strong> or
+            <strong>estimated</strong>. A row marked "estimated" is more honest — and more useful — than no row at all.
+            Confidence makes our gaps visible. Hiding gaps is how research-grade data becomes vapor.
+          </div>
+        </div>
+      </div>
+
+      <div class="belief">
+        <div class="belief-num">03</div>
+        <div>
+          <div class="belief-title">Every fact <em>resolves to a source</em>.</div>
+          <div class="belief-body">
+            We do not hold unsourced data. Every population figure, every endangerment classification, every transmission
+            assessment carries its citation — and the citation carries its reliability rating. If we cannot defend a fact in
+            a footnote, we treat it as a question, not an answer.
+          </div>
+        </div>
+      </div>
+
+      <div class="belief">
+        <div class="belief-num">04</div>
+        <div>
+          <div class="belief-title">We use <em>Glottolog as a tool</em>, not as truth.</div>
+          <div class="belief-body">
+            Academic linguistics gives us a structural backbone that lets our work interoperate with the broader research
+            ecosystem. We use it gratefully. But when community classifications differ from academic ones — and they
+            sometimes will — we record both, and the schema does not flatten the disagreement. Communities have the right
+            to define what their language is.
+          </div>
+        </div>
+      </div>
+
+      <div class="belief">
+        <div class="belief-num">05</div>
+        <div>
+          <div class="belief-title">Time-series data <em>tells the truth</em> that snapshots cannot.</div>
+          <div class="belief-body">
+            A single speaker count is a number. Five speaker counts over a decade is a story — about whether a language is
+            recovering, holding, or being lost. We build time-series into the architecture from day one, because the
+            trajectory matters at least as much as the current state, and because evidence of impact requires baselines.
+          </div>
+        </div>
+      </div>
+
+      <div class="belief">
+        <div class="belief-num">06</div>
+        <div>
+          <div class="belief-title">The archive <em>outlasts the organization</em>.</div>
+          <div class="belief-body">
+            TomorrowLabs as a corporate entity will not exist in fifty years. The corpus we build — recordings, classifications,
+            documentation — could. We choose identifier systems, license structures, and data formats with that horizon in
+            mind. The standard isn't <em>useful to us in the near term</em>; it's <em>findable and usable by a grandchild in 2080</em>.
+          </div>
+        </div>
+      </div>
+
+      <div class="belief">
+        <div class="belief-num">07</div>
+        <div>
+          <div class="belief-title">Community-contributed data <em>belongs to the community</em>.</div>
+          <div class="belief-body">
+            When a grandparent records a story, the recording is theirs. When a community partner contributes a corpus, the
+            terms of use are co-designed. The platform thesis — that communities generate data that improves models that
+            improves products — only works if benefit-sharing is structural, not aspirational. We encode this in the schema,
+            not just in the contracts.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- PULL QUOTE -->
+  <div class="pullquote">
+    The discipline of building research-grade data infrastructure is not separate from the mission. It <em>is</em> the mission,
+    operating at a layer that doesn't show up in the product.
+  </div>
+
+  <!-- THE HARD PART -->
+  <div class="hard-part">
+    <div class="section-label">The Hard Part</div>
+    <h2 style="margin-bottom: 18px;">We are choosing a <em>particular</em> epistemic framework.</h2>
+    <p>
+      Anchoring TomorrowLabs to academic structural linguistics — Glottolog, EGIDS, UNESCO frameworks — is not neutral.
+      These traditions have histories. They reflect particular intellectual lineages, mostly European in origin, that have
+      not always served the communities whose languages they classify.
+    </p>
+    <p>
+      We make this commitment with eyes open. The alternative — building our own ontology — would be worse and more
+      presumptuous. The other alternative — refusing to commit at all — would make the work uninteroperable with everyone
+      doing related work elsewhere. So we choose the imperfect tool, and we build in mechanisms for community override.
+    </p>
+    <p>
+      When the Mayan K'iche' community partner tells us their classification differs from Glottolog's, the schema records
+      both — and the community position is not subordinate. That structural willingness to hold disagreement is the
+      difference between using Glottolog as a tool and using it as truth. It is not a small distinction. It is the
+      distinction.
+    </p>
+  </div>
+
+  <!-- COMMITMENTS -->
+  <section>
+    <div class="section-label">In Practice</div>
+    <h2>What this commits us to, operationally.</h2>
+
+    <div class="commitments">
+      <div class="commitments-header">
+        <h3>Our practical commitments</h3>
+        <span>Non-negotiable</span>
+      </div>
+      <div class="commitments-list">
+        <div class="commitment">
+          <div class="commitment-marker">i.</div>
+          <div class="commitment-text">
+            <strong>Every new language we add carries a Glottocode</strong>, validated against canonical Glottolog data, before
+            it appears in any TomorrowLabs product or research output.
+          </div>
+        </div>
+        <div class="commitment">
+          <div class="commitment-marker">ii.</div>
+          <div class="commitment-text">
+            <strong>We maintain a decision log</strong> for every significant classification or roadmap choice, with rationale,
+            owner, and revisit date. Future collaborators inherit our reasoning, not just our conclusions.
+          </div>
+        </div>
+        <div class="commitment">
+          <div class="commitment-marker">iii.</div>
+          <div class="commitment-text">
+            <strong>We publish under open licenses</strong> — CC-BY for documentation, CC0 where community partners consent —
+            unless community-specific terms require otherwise.
+          </div>
+        </div>
+        <div class="commitment">
+          <div class="commitment-marker">iv.</div>
+          <div class="commitment-text">
+            <strong>We contribute back</strong>. Field deployments that produce audio corpora contribute to Mozilla Common Voice
+            and equivalent community-owned infrastructure where partners consent. The data flywheel runs in both directions.
+          </div>
+        </div>
+        <div class="commitment">
+          <div class="commitment-marker">v.</div>
+          <div class="commitment-text">
+            <strong>We review the philosophy itself annually</strong>. The field evolves. Communities push back. New frameworks
+            emerge. A philosophy that doesn't get challenged isn't a philosophy — it's a habit.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CLOSING -->
+  <section style="margin-top: 64px;">
+    <div class="section-label">In Closing</div>
+    <h2>This is a <em>multi-generational</em> commitment.</h2>
+    <p>
+      We are at the beginning of work that, done well, will outlast us. The data we organize now shapes what is preservable
+      later. The classification decisions we make today affect what a grandchild in 2080 will be able to find of their
+      grandmother's voice.
+    </p>
+    <p>
+      That weight is not a burden. It is the reason the work is worth doing carefully. The discipline of treating language
+      data with research-grade seriousness is how we honor both the languages and the people who speak them.
+    </p>
+    <p>
+      This document is itself a commitment — to the reader, to the communities we work with, and to the people who will
+      inherit this organization. We will hold ourselves to it.
+    </p>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-block">
+      <div class="label">Document</div>
+      <div class="value">Data Philosophy v1</div>
+    </div>
+    <div class="footer-block">
+      <div class="label">Owner</div>
+      <div class="value">Weston, TomorrowLabs</div>
+    </div>
+    <div class="footer-block">
+      <div class="label">Next Review</div>
+      <div class="value">May 2027</div>
+    </div>
+  </footer>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TomorrowLabs · Data Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400;1,9..144,500&family=JetBrains+Mono:wght@400;500&family=Inter:wght@400;500;600;700&display=swap');
+
+  :root {
+    --paper: #F7F4ED;
+    --paper-warm: #FAF6EC;
+    --ink: #1A1614;
+    --ink-soft: #4A413B;
+    --ink-faded: #8A7F76;
+    --line: #C8BFB1;
+    --line-faint: #E5DDD0;
+    
+    --moss: #2D5F3F;
+    --moss-light: #4A7B5A;
+    --moss-tint: #E8F0EB;
+    
+    --rust: #B85C2E;
+    --rust-deep: #8B3F1C;
+    --rust-tint: #F4E8E0;
+    
+    --clay: #C49968;
+    --clay-tint: #F0E4D2;
+    
+    --gold: #A87D3F;
+    --gold-tint: #F0E8D5;
+    
+    --slate: #5A6B6D;
+    --slate-tint: #E5EAEB;
+    
+    --shadow: rgba(26, 22, 20, 0.06);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Fraunces', Georgia, serif;
+    line-height: 1.55;
+    min-height: 100vh;
+    padding: 32px 24px 80px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .sheet {
+    max-width: 1080px;
+    margin: 0 auto;
+    background: var(--paper-warm);
+    border: 1px solid var(--ink);
+    padding: 64px 72px 80px;
+    position: relative;
+    box-shadow: 0 1px 0 var(--ink), 0 2px 32px var(--shadow);
+    background-image:
+      radial-gradient(circle at 15% 10%, rgba(184, 92, 46, 0.02) 0%, transparent 50%),
+      radial-gradient(circle at 85% 80%, rgba(45, 95, 63, 0.025) 0%, transparent 55%);
+  }
+
+  .sheet::before, .sheet::after {
+    content: '';
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border: 1.5px solid var(--ink);
+  }
+  .sheet::before {
+    top: -1px; left: -1px;
+    border-right: none; border-bottom: none;
+  }
+  .sheet::after {
+    bottom: -1px; right: -1px;
+    border-left: none; border-top: none;
+  }
+
+  /* HEADER */
+  .doc-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 40px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .doc-meta .eyebrow {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--moss);
+    font-weight: 700;
+  }
+
+  .doc-meta .status {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-faded);
+    font-weight: 500;
+  }
+
+  h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 52px;
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    margin-bottom: 24px;
+    color: var(--ink);
+  }
+
+  h1 em {
+    font-style: italic;
+    color: var(--moss);
+    font-weight: 400;
+  }
+
+  .deck {
+    font-family: 'Fraunces', serif;
+    font-size: 19px;
+    font-style: italic;
+    color: var(--ink-soft);
+    line-height: 1.5;
+    max-width: 720px;
+    margin-bottom: 56px;
+    font-weight: 300;
+  }
+
+  section {
+    margin-bottom: 64px;
+  }
+
+  .section-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--rust-deep);
+    font-weight: 700;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-label::before {
+    content: '';
+    display: inline-block;
+    width: 24px;
+    height: 1.5px;
+    background: var(--rust-deep);
+  }
+
+  h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 32px;
+    font-weight: 400;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    margin-bottom: 20px;
+    color: var(--ink);
+  }
+
+  h2 em {
+    font-style: italic;
+    color: var(--moss);
+  }
+
+  p {
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--ink);
+    margin-bottom: 16px;
+  }
+
+  strong { font-weight: 600; }
+  em { font-style: italic; }
+
+  /* ========== THE STACK DIAGRAM ========== */
+  .stack {
+    margin: 32px 0 48px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    border: 2px solid var(--ink);
+    background: var(--ink);
+    box-shadow: 0 4px 24px rgba(26, 22, 20, 0.1);
+  }
+
+  .layer {
+    background: var(--paper-warm);
+    padding: 28px 32px;
+    display: grid;
+    grid-template-columns: 80px 1fr 280px;
+    gap: 24px;
+    align-items: start;
+    position: relative;
+  }
+
+  .layer-num {
+    font-family: 'Fraunces', serif;
+    font-size: 56px;
+    font-weight: 300;
+    line-height: 0.9;
+    font-style: italic;
+    letter-spacing: -0.02em;
+  }
+
+  .layer-content h3 {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 500;
+    margin-bottom: 4px;
+    letter-spacing: -0.005em;
+  }
+
+  .layer-content h3 em {
+    font-style: italic;
+    font-weight: 400;
+  }
+
+  .layer-subtitle {
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+    font-weight: 600;
+  }
+
+  .layer-desc {
+    font-family: 'Fraunces', serif;
+    font-size: 14px;
+    line-height: 1.55;
+    margin-bottom: 14px;
+  }
+
+  .layer-traits {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    line-height: 1.5;
+    letter-spacing: 0.02em;
+    opacity: 0.7;
+  }
+
+  .layer-purpose {
+    background: rgba(0, 0, 0, 0.04);
+    padding: 16px 18px;
+    border-radius: 2px;
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 13px;
+    line-height: 1.55;
+    align-self: stretch;
+  }
+
+  .layer-purpose .purpose-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-style: normal;
+    font-weight: 700;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  /* Layer-specific colors */
+  .layer-01 { color: var(--moss); }
+  .layer-01 h3, .layer-01 .layer-purpose { color: var(--moss); }
+  .layer-01 .layer-subtitle { color: var(--moss); }
+  .layer-01 .layer-desc, .layer-01 .layer-traits { color: var(--ink); }
+  .layer-01 .layer-purpose { background: var(--moss-tint); }
+
+  .layer-02 { color: var(--rust-deep); }
+  .layer-02 h3, .layer-02 .layer-purpose { color: var(--rust-deep); }
+  .layer-02 .layer-subtitle { color: var(--rust-deep); }
+  .layer-02 .layer-desc, .layer-02 .layer-traits { color: var(--ink); }
+  .layer-02 .layer-purpose { background: var(--rust-tint); }
+
+  .layer-03 { color: var(--gold); }
+  .layer-03 h3, .layer-03 .layer-purpose { color: var(--gold); }
+  .layer-03 .layer-subtitle { color: var(--gold); }
+  .layer-03 .layer-desc, .layer-03 .layer-traits { color: var(--ink); }
+  .layer-03 .layer-purpose { background: var(--gold-tint); }
+
+  .layer-04 { color: var(--slate); }
+  .layer-04 h3, .layer-04 .layer-purpose { color: var(--slate); }
+  .layer-04 .layer-subtitle { color: var(--slate); }
+  .layer-04 .layer-desc, .layer-04 .layer-traits { color: var(--ink); }
+  .layer-04 .layer-purpose { background: var(--slate-tint); }
+
+  /* Cross-cutting strip */
+  .cross-cutting {
+    background: var(--ink);
+    color: var(--paper-warm);
+    padding: 22px 32px;
+    display: grid;
+    grid-template-columns: 80px 1fr 280px;
+    gap: 24px;
+    align-items: center;
+  }
+
+  .cross-cutting .cc-num {
+    font-family: 'Fraunces', serif;
+    font-size: 28px;
+    font-weight: 300;
+    font-style: italic;
+    color: var(--clay);
+    line-height: 1;
+    letter-spacing: -0.01em;
+  }
+
+  .cross-cutting h3 {
+    font-family: 'Fraunces', serif;
+    font-size: 17px;
+    font-weight: 500;
+    margin-bottom: 6px;
+    color: var(--paper-warm);
+  }
+
+  .cross-cutting h3 em {
+    color: var(--clay);
+    font-style: italic;
+  }
+
+  .cross-cutting .cc-items {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.04em;
+    line-height: 1.6;
+    opacity: 0.85;
+  }
+
+  .cross-cutting .cc-purpose {
+    font-family: 'Fraunces', serif;
+    font-style: italic;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--clay-tint);
+    opacity: 0.92;
+  }
+
+  /* DETAIL CARDS */
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 32px;
+  }
+
+  .detail-card {
+    background: #FFFFFF;
+    border: 1px solid var(--line);
+    padding: 28px;
+    border-left-width: 3px;
+  }
+
+  .detail-card.l1 { border-left-color: var(--moss); }
+  .detail-card.l2 { border-left-color: var(--rust-deep); }
+  .detail-card.l3 { border-left-color: var(--gold); }
+  .detail-card.l4 { border-left-color: var(--slate); }
+
+  .detail-card .card-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+
+  .detail-card.l1 .card-label { color: var(--moss); }
+  .detail-card.l2 .card-label { color: var(--rust-deep); }
+  .detail-card.l3 .card-label { color: var(--gold); }
+  .detail-card.l4 .card-label { color: var(--slate); }
+
+  .detail-card h4 {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 16px;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+  }
+
+  .detail-card h4 em {
+    font-style: italic;
+  }
+
+  .detail-card ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .detail-card li {
+    font-family: 'Fraunces', serif;
+    font-size: 13.5px;
+    line-height: 1.5;
+    padding: 8px 0;
+    border-bottom: 1px dotted var(--line-faint);
+    color: var(--ink-soft);
+  }
+
+  .detail-card li:last-child {
+    border-bottom: none;
+  }
+
+  .detail-card li strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  .detail-card li .entity-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-faded);
+    margin-left: 6px;
+    letter-spacing: 0.02em;
+  }
+
+  /* PHASE ROADMAP */
+  .phases {
+    margin-top: 32px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  .phase {
+    background: var(--paper-warm);
+    border: 1px solid var(--ink);
+    padding: 24px 20px;
+    position: relative;
+  }
+
+  .phase-num {
+    font-family: 'Fraunces', serif;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--rust-deep);
+    font-weight: 600;
+    font-style: italic;
+    margin-bottom: 6px;
+  }
+
+  .phase h4 {
+    font-family: 'Fraunces', serif;
+    font-size: 17px;
+    font-weight: 500;
+    margin-bottom: 8px;
+    line-height: 1.2;
+  }
+
+  .phase .phase-timing {
+    font-family: 'Inter', sans-serif;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--ink-faded);
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+
+  .phase p {
+    font-family: 'Fraunces', serif;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+    margin-bottom: 0;
+  }
+
+  /* GOVERNANCE BLOCK */
+  .governance {
+    background: var(--ink);
+    color: var(--paper-warm);
+    padding: 40px 44px;
+    margin: 56px -8px;
+    position: relative;
+  }
+
+  .governance::before {
+    content: 'Outside the data model';
+    position: absolute;
+    top: -10px;
+    left: 32px;
+    background: var(--rust);
+    color: var(--paper);
+    padding: 4px 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .governance h2 {
+    color: var(--paper-warm);
+    margin-bottom: 12px;
+  }
+
+  .governance h2 em {
+    color: var(--clay);
+  }
+
+  .governance > p {
+    color: var(--paper-warm);
+    opacity: 0.88;
+    max-width: 660px;
+    margin-bottom: 28px;
+  }
+
+  .governance-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    margin-top: 20px;
+  }
+
+  .gov-item h4 {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    font-weight: 500;
+    font-style: italic;
+    color: var(--clay);
+    margin-bottom: 10px;
+  }
+
+  .gov-item p {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--paper-warm);
+    opacity: 0.85;
+    margin-bottom: 0;
+  }
+
+  /* TENSION CALLOUT */
+  .tension {
+    background: var(--rust-tint);
+    border: 1px solid var(--rust);
+    padding: 32px 36px;
+    margin: 40px 0;
+    border-radius: 0;
+  }
+
+  .tension .t-label {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--rust-deep);
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+
+  .tension h3 {
+    font-family: 'Fraunces', serif;
+    font-size: 22px;
+    font-style: italic;
+    font-weight: 500;
+    color: var(--rust-deep);
+    margin-bottom: 14px;
+    line-height: 1.3;
+  }
+
+  .tension p {
+    font-size: 14px;
+    line-height: 1.65;
+    color: var(--ink);
+    margin-bottom: 12px;
+  }
+
+  .tension p:last-child {
+    margin-bottom: 0;
+  }
+
+  /* FOOTER */
+  .footer {
+    margin-top: 64px;
+    padding-top: 32px;
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 32px;
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    color: var(--ink-faded);
+  }
+
+  .footer-block .label {
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .footer-block .value {
+    color: var(--ink);
+    font-family: 'Fraunces', serif;
+    font-size: 13px;
+    font-style: italic;
+    line-height: 1.4;
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 880px) {
+    body { padding: 16px 12px 60px; }
+    .sheet { padding: 36px 24px 48px; }
+    h1 { font-size: 32px; }
+    .deck { font-size: 16px; }
+    h2 { font-size: 24px; }
+    .layer { grid-template-columns: 50px 1fr; gap: 16px; padding: 20px; }
+    .layer-num { font-size: 36px; }
+    .layer-purpose { grid-column: 1 / -1; margin-top: 8px; }
+    .cross-cutting { grid-template-columns: 50px 1fr; gap: 16px; padding: 16px 20px; }
+    .cross-cutting .cc-purpose { grid-column: 1 / -1; margin-top: 8px; }
+    .detail-grid { grid-template-columns: 1fr; }
+    .phases { grid-template-columns: 1fr; }
+    .governance { padding: 24px; margin: 32px -4px; }
+    .governance-grid { grid-template-columns: 1fr; }
+    .footer { grid-template-columns: 1fr; gap: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sheet">
+
+  <!-- HEADER -->
+  <header class="doc-meta">
+    <div class="eyebrow">TomorrowLabs · Foundational Document</div>
+    <div class="status">Data Architecture v1</div>
+  </header>
+
+  <h1>How TomorrowLabs <em>organizes what it knows</em>.</h1>
+
+  <p class="deck">
+    Four layers, governed by shared infrastructure, designed to support strategic, operational, and real-time decisions
+    without letting any one of them colonize the others. This is the architectural reference for everything we build.
+  </p>
+
+  <!-- THE OPENING ARGUMENT -->
+  <section>
+    <div class="section-label">The Argument</div>
+    <h2>An <em>intelligent organization</em> needs three kinds of data, and three kinds of decisions.</h2>
+
+    <p>
+      Most organizations conflate their data infrastructure. They build one system that tries to be a research database, an
+      operational tool, and a real-time product backend simultaneously. The result is a system that's mediocre at all three.
+    </p>
+
+    <p>
+      TomorrowLabs operates at three timescales that demand fundamentally different data approaches. <strong>Strategic
+      decisions</strong> — where to expand, which languages to serve — happen annually and require careful, cited,
+      research-grade data. <strong>Operational decisions</strong> — when to ship, how to price — happen weekly and require
+      accurate current-state data. <strong>Real-time decisions</strong> — what to show this user right now — happen thousands
+      of times a day and require fast, contextual data.
+    </p>
+
+    <p>
+      The architecture below treats these as <strong>distinct but connected layers</strong>. Each layer has its own
+      characteristics, its own update cadence, its own access patterns. Cross-cutting infrastructure ensures they cohere
+      into a single intelligent system rather than fragment into disconnected silos.
+    </p>
+  </section>
+
+  <!-- THE STACK -->
+  <section>
+    <div class="section-label">The Stack</div>
+    <h2>Four layers, top to bottom.</h2>
+
+    <div class="stack">
+
+      <!-- Layer 4 (top) -->
+      <div class="layer layer-04">
+        <div class="layer-num">04</div>
+        <div class="layer-content">
+          <div class="layer-subtitle">Decision Support</div>
+          <h3>Synthesized <em>views</em> that answer specific questions.</h3>
+          <div class="layer-desc">
+            Not separate tables — curated views, dashboards, and AI-assisted analyses that combine data from layers below
+            to answer strategic, operational, and exploratory questions. Question-driven. Audience-specific.
+          </div>
+          <div class="layer-traits">
+            cadence · ephemeral or periodic · audience · board, team, partner, public · ownership · per-question owner
+          </div>
+        </div>
+        <div class="layer-purpose">
+          <span class="purpose-label">Serves</span>
+          The recurring questions TomorrowLabs needs to answer well, repeatedly, with internal consistency.
+        </div>
+      </div>
+
+      <!-- Layer 3 -->
+      <div class="layer layer-03">
+        <div class="layer-num">03</div>
+        <div class="layer-content">
+          <div class="layer-subtitle">Operational Data</div>
+          <h3>The work <em>TomorrowLabs is currently doing</em>.</h3>
+          <div class="layer-desc">
+            Active partnerships, deployments in flight, products in market, content libraries, financial transactions,
+            user activity. High-velocity, organization-private, integrated with operational tools. This is the layer
+            that makes the company run.
+          </div>
+          <div class="layer-traits">
+            cadence · daily to hourly · sources · Asana, Stripe, product DBs, internal tools · access · controlled
+          </div>
+        </div>
+        <div class="layer-purpose">
+          <span class="purpose-label">Serves</span>
+          Day-to-day operations. The team's working memory of what's happening right now.
+        </div>
+      </div>
+
+      <!-- Layer 2 -->
+      <div class="layer layer-02">
+        <div class="layer-num">02</div>
+        <div class="layer-content">
+          <div class="layer-subtitle">Observational Data</div>
+          <h3>What is <em>actually happening</em> in the world.</h3>
+          <div class="layer-desc">
+            Time-series data about populations, languages, markets, infrastructure, partnerships. Never overwritten —
+            always appended. Each row is a snapshot at a point in time. This is how trajectory becomes legible and
+            how impact becomes measurable.
+          </div>
+          <div class="layer-traits">
+            cadence · weekly to yearly · sources · censuses, surveys, partner reports, sensor data · format · longitudinal
+          </div>
+        </div>
+        <div class="layer-purpose">
+          <span class="purpose-label">Serves</span>
+          Trajectory analysis, impact measurement, trend detection across years.
+        </div>
+      </div>
+
+      <!-- Layer 1 (foundation) -->
+      <div class="layer layer-01">
+        <div class="layer-num">01</div>
+        <div class="layer-content">
+          <div class="layer-subtitle">Reference Data</div>
+          <h3>The slow-moving <em>truth</em> about the world.</h3>
+          <div class="layer-desc">
+            Canonical entities: languages, places, organizations, frameworks, standards. Slow-moving. Curated carefully.
+            Cross-referenced to authoritative external sources. The substrate every other layer references.
+            Multi-generationally durable.
+          </div>
+          <div class="layer-traits">
+            cadence · monthly to yearly · sources · Glottolog, GeoNames, academic catalogs · format · research-grade
+          </div>
+        </div>
+        <div class="layer-purpose">
+          <span class="purpose-label">Serves</span>
+          Authoritative identity. The shared vocabulary every other layer is built on.
+        </div>
+      </div>
+
+      <!-- Cross-cutting (bottom strip) -->
+      <div class="cross-cutting">
+        <div class="cc-num">00</div>
+        <div>
+          <h3>Cross-cutting <em>infrastructure</em>.</h3>
+          <div class="cc-items">
+            sources · confidence · consent · audit log · identity resolution · privacy · access control
+          </div>
+        </div>
+        <div class="cc-purpose">
+          Serves every layer above. Where the values of the organization become enforceable rather than aspirational.
+        </div>
+      </div>
+
+    </div>
+
+    <p style="margin-top: 24px; font-size: 14px; font-style: italic; color: var(--ink-soft);">
+      Each layer references the layers below it, never above. Layer 1 is foundation; Layer 4 sits at the surface where
+      decisions get made. The cross-cutting strip is not a layer in the same sense — it's the connective tissue.
+    </p>
+  </section>
+
+  <!-- WHAT LIVES IN EACH LAYER -->
+  <section>
+    <div class="section-label">The Inventory</div>
+    <h2>What <em>actually lives</em> in each layer.</h2>
+
+    <p>
+      A working sketch of the entities and tables per layer. Final counts will evolve as the model gets built, but the
+      order of magnitude is roughly 50–70 tables across the whole system. The language database already built (21 tables)
+      sits inside Layer 1 and Layer 2.
+    </p>
+
+    <div class="detail-grid">
+
+      <div class="detail-card l1">
+        <div class="card-label">Layer 01 · Reference</div>
+        <h4>The <em>canonical entities</em>.</h4>
+        <ul>
+          <li><strong>Languages</strong> <span class="entity-tag">already built</span> — Glottolog-anchored, hierarchical, granularity-aware.</li>
+          <li><strong>Places</strong> <span class="entity-tag">phase 1</span> — GeoNames + indigenous territory overlays, hierarchical from country to neighborhood.</li>
+          <li><strong>Organizations</strong> <span class="entity-tag">phase 1</span> — Partners, funders, peer orgs, governments. The ecosystem we work in.</li>
+          <li><strong>Communities</strong> — Diaspora networks, religious communities, professional networks. Cross-cuts languages and places.</li>
+          <li><strong>People-roles</strong> — Community leaders, researchers, partner contacts. Tracked at the level of role, not personal identity.</li>
+          <li><strong>Frameworks &amp; Classifications</strong> — EGIDS, vitality scales, regulatory categories, standards we reference.</li>
+          <li><strong>Standards &amp; Protocols</strong> — Data formats, identifier systems, methodology references.</li>
+        </ul>
+      </div>
+
+      <div class="detail-card l2">
+        <div class="card-label">Layer 02 · Observational</div>
+        <h4>The world <em>over time</em>.</h4>
+        <ul>
+          <li><strong>Demographics</strong> — Populations, age structures, migration patterns. Per place, per community, per language.</li>
+          <li><strong>Economic indicators</strong> — Purchasing power, currency, market signals, price benchmarks.</li>
+          <li><strong>Infrastructure</strong> — Digital divide metrics, electrification, postal reliability, logistics quality.</li>
+          <li><strong>Educational outcomes</strong> — Literacy, enrollment, language-of-instruction status.</li>
+          <li><strong>Vitality &amp; transmission</strong> <span class="entity-tag">partially built</span> — Already designed for languages; same pattern for places &amp; communities.</li>
+          <li><strong>Cultural calendar</strong> — Holidays, seasons, school terms, harvest cycles.</li>
+          <li><strong>Regulatory environment</strong> — Data protection laws, content regulations, indigenous data sovereignty.</li>
+          <li><strong>Health &amp; safety</strong> — Disease prevalence, conflict zones, child protection infrastructure.</li>
+          <li><strong>Partnership health</strong> — Trust metrics, relationship state changes over time.</li>
+        </ul>
+      </div>
+
+      <div class="detail-card l3">
+        <div class="card-label">Layer 03 · Operational</div>
+        <h4>Active <em>work</em>.</h4>
+        <ul>
+          <li><strong>Active partnerships</strong> — Field partners, MOU status, deployment readiness.</li>
+          <li><strong>Programs &amp; deployments</strong> — What's running where, with whom, against what milestones.</li>
+          <li><strong>Products in market</strong> — Babagigi, LDL, etc. State, performance, user counts.</li>
+          <li><strong>Content libraries</strong> — Storybooks, audio, curriculum, visual assets. With rights and licensing.</li>
+          <li><strong>Users &amp; consent</strong> — Account data, consent state, communication preferences.</li>
+          <li><strong>Financial operations</strong> — Revenue, expenses, grants in flight, benefit-sharing flows.</li>
+          <li><strong>Team &amp; capacity</strong> — Who's doing what, what's blocked, what's at risk.</li>
+          <li><strong>Communications archive</strong> — With partners, communities, funders.</li>
+          <li><strong>Technical infrastructure</strong> — Deployed models, vendor contracts, integration status.</li>
+        </ul>
+      </div>
+
+      <div class="detail-card l4">
+        <div class="card-label">Layer 04 · Decision Support</div>
+        <h4>Synthesized <em>views</em>.</h4>
+        <ul>
+          <li><strong>Strategic dashboards</strong> — Board-level, quarterly. Portfolio health, mission progress.</li>
+          <li><strong>Operational dashboards</strong> — Team-level, weekly. What needs attention, what's drifting.</li>
+          <li><strong>Decision protocols</strong> — Formalized recurring questions. "Should we expand to X?" with reproducible methodology.</li>
+          <li><strong>AI-assisted analyses</strong> — LLM-mediated synthesis across layers, for exploratory questions.</li>
+          <li><strong>Public-facing reports</strong> — Transparency mechanisms for funders, communities, the field.</li>
+          <li><strong>Partner-facing views</strong> — What each community partner can see about TomorrowLabs's work in their context.</li>
+        </ul>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- THE GOVERNANCE BLOCK -->
+  <div class="governance">
+    <h2>What the <em>architecture alone</em> can't do.</h2>
+    <p>
+      Three pieces of infrastructure that sit outside the data model itself but determine whether the model becomes
+      intelligence or noise.
+    </p>
+
+    <div class="governance-grid">
+      <div class="gov-item">
+        <h4>Data governance function</h4>
+        <p>
+          Someone whose job is data quality, identifier conflicts, consent management, access audits. Initially Weston;
+          eventually a dedicated role. Without this, the system degrades within two years.
+        </p>
+      </div>
+      <div class="gov-item">
+        <h4>Decision-making protocol</h4>
+        <p>
+          When do we actually consult the data? How does it flow into deliberation? Organizations that build great data
+          infrastructure and then make decisions by gut feel haven't become data-intelligent — they have decoration.
+        </p>
+      </div>
+      <div class="gov-item">
+        <h4>Community accountability</h4>
+        <p>
+          How do partner communities review what we hold about them? How do they correct errors or revoke consent? This
+          is the governance the pressure-test critique demanded. It cannot be retrofitted.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- THE TENSION -->
+  <div class="tension">
+    <div class="t-label">The Tension We Must Architect Around</div>
+    <h3>When humanitarian and commercial logics conflict, which layer wins?</h3>
+    <p>
+      Layer 3 (operational) is where commercial pressure lives. Subscription metrics, conversion goals, retention math.
+      Layer 1 and 2 (reference and observational) are where humanitarian commitments live. Consent state, transmission
+      risk, community position.
+    </p>
+    <p>
+      In practice these pull in different directions. When Layer 3 says <em>"send this push notification to drive conversion"</em>
+      and Layer 1/2 says <em>"this community has opted out of marketing communications,"</em> only one can prevail.
+    </p>
+    <p>
+      <strong>The architectural answer is encoded in the structure itself, not in policy alone.</strong> The cross-cutting
+      consent and rights layer sits <em>above</em> operational logic and cannot be overridden by it. Layer 3 reads Layer 1/2;
+      Layer 1/2 never reads from Layer 3. The schema enforces what the values claim. If the architecture doesn't enforce
+      it, operational pressure will erode it over time.
+    </p>
+  </div>
+
+  <!-- THE PHASING -->
+  <section>
+    <div class="section-label">The Phasing</div>
+    <h2>How we build this <em>without trying to build it all at once</em>.</h2>
+
+    <p>
+      The temptation is to design everything before populating anything. Resist this. The smart approach is deliberate
+      phases that produce value at each step while keeping the architectural model coherent.
+    </p>
+
+    <div class="phases">
+      <div class="phase">
+        <div class="phase-num">Phase 01</div>
+        <h4>The Spine</h4>
+        <div class="phase-timing">Q3 2026 · 3 months</div>
+        <p>
+          Extend Layer 1: add <strong>places</strong> and <strong>organizations</strong> alongside languages, with the same
+          care. These three reference entities unlock cross-referenceable infrastructure for almost everything else.
+        </p>
+      </div>
+      <div class="phase">
+        <div class="phase-num">Phase 02</div>
+        <h4>Observational Depth</h4>
+        <div class="phase-timing">Q4 2026 – Q1 2027 · 6 months</div>
+        <p>
+          Build Layer 2 tables for the dimensions most critical to current decisions: <strong>demographics, market
+          readiness, digital infrastructure</strong>. Populate sparsely with high-confidence data first.
+        </p>
+      </div>
+      <div class="phase">
+        <div class="phase-num">Phase 03</div>
+        <h4>Operationalize</h4>
+        <div class="phase-timing">Q2 2027 onwards</div>
+        <p>
+          Connect Layer 3 to actual operational systems via API integration: Asana, Stripe, product analytics, Common
+          Voice contributions. Mostly integration work, faster than it sounds.
+        </p>
+      </div>
+      <div class="phase">
+        <div class="phase-num">Phase 04</div>
+        <h4>Decision Support</h4>
+        <div class="phase-timing">Q3 2027 · ongoing</div>
+        <p>
+          Build Layer 4 views and dashboards that answer specific strategic questions. This phase never ends — it adapts
+          continuously as the organization learns which questions matter most.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CLOSING -->
+  <section>
+    <div class="section-label">Why this shape</div>
+    <h2>The architecture <em>is</em> the philosophy made operational.</h2>
+
+    <p>
+      The four-layer model is not arbitrary. It is the structural expression of what TomorrowLabs believes about data:
+      that reference data deserves slow, careful curation; that observational data must hold trajectory honestly; that
+      operational data must serve the work without colonizing the values above it; and that decision support is the
+      layer where data becomes intelligence.
+    </p>
+
+    <p>
+      The cross-cutting infrastructure — sources, consent, audit, identity, access — is where the philosophy stops being
+      a document and becomes enforcement. <strong>An organization that says it cares about consent without encoding consent
+      structurally is making a promise it cannot keep.</strong> The architecture is the keeping of the promise.
+    </p>
+
+    <p>
+      Every subsequent technical decision TomorrowLabs makes will reference this document. New databases attach to a
+      layer. New entities get categorized. New decisions get traced back to which layer they draw from. The architecture
+      is the constitution of the data work.
+    </p>
+  </section>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <div class="footer-block">
+      <div class="label">Document</div>
+      <div class="value">Data Architecture v1</div>
+    </div>
+    <div class="footer-block">
+      <div class="label">Owner</div>
+      <div class="value">Weston, TomorrowLabs</div>
+    </div>
+    <div class="footer-block">
+      <div class="label">Next Review</div>
+      <div class="value">November 2026, with implementation milestones</div>
+    </div>
+  </footer>
+
+</div>
+
+</body>
+</html>
