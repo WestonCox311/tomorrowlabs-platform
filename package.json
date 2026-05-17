@@ -7,7 +7,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "seed:glottolog": "tsx scripts/seed-glottolog.ts",
+    "seed:geonames": "tsx scripts/seed-geonames.ts",
+    "seed:endonyms": "tsx scripts/seed-endonyms.ts",
+    "seed:all": "npm run seed:glottolog && npm run seed:geonames && npm run seed:endonyms"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
@@ -30,6 +34,7 @@
     "@types/react-dom": "^19.1.2",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.1.6",
+    "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }
 }
