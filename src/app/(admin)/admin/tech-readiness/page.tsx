@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
-import Link from 'next/link';
+import { Suspense } from 'react';
 import { InfoTooltip } from '@/components/info-tooltip';
+import { FilterBar } from '@/components/filter-bar';
 import { ClickableRow } from '@/components/clickable-row';
 import { SortHeader } from '@/components/sort-header';
 import type { Database } from '@/lib/database.types';
@@ -30,11 +31,11 @@ function TierBadge({ tier }: { tier: TechQuality | null }) {
 const ALLOWED_SORT = ['english_name', 'stt_quality_tier', 'tts_quality_tier', 'omnilingual_cer', 'common_voice_hours_validated', 'assessed_at'] as const;
 
 interface Props {
-  searchParams: Promise<{ stt?: string; tts?: string; babagigi?: string; sort?: string; dir?: string }>;
+  searchParams: Promise<{ q?: string; stt?: string; tts?: string; omnilingual?: string; ipa?: string; babagigi?: string; sort?: string; dir?: string }>;
 }
 
 export default async function TechReadinessPage({ searchParams }: Props) {
-  const { stt, tts, babagigi, sort: sortParam, dir: dirParam } = await searchParams;
+  const { q, stt, tts, omnilingual, ipa, babagigi, sort: sortParam, dir: dirParam } = await searchParams;
 
   const sortCol = (ALLOWED_SORT as readonly string[]).includes(sortParam ?? '') ? sortParam! : 'stt_quality_tier';
   const sortDir = dirParam === 'desc' ? 'desc' : 'asc';
@@ -73,8 +74,17 @@ export default async function TechReadinessPage({ searchParams }: Props) {
 
   // Apply filters
   let rows = allRows;
+  if (q) {
+    const qLower = q.toLowerCase();
+    rows = rows.filter((r) => {
+      const lang = Array.isArray(r.languages) ? r.languages[0] : r.languages;
+      return lang?.english_name?.toLowerCase().includes(qLower);
+    });
+  }
   if (stt) rows = rows.filter((r) => r.stt_quality_tier === stt);
   if (tts) rows = rows.filter((r) => r.tts_quality_tier === tts);
+  if (omnilingual === 'true') rows = rows.filter((r) => r.omnilingual_supported);
+  if (ipa === 'true') rows = rows.filter((r) => r.ipa_pipeline_viable);
   if (babagigi === 'true') rows = rows.filter((r) => babagigLangIds.has(r.language_id));
 
   // JS sort
@@ -119,12 +129,15 @@ export default async function TechReadinessPage({ searchParams }: Props) {
     }
   });
 
-  const hasFilters = stt || tts || babagigi;
+  const hasFilters = q || stt || tts || omnilingual || ipa || babagigi;
 
   function sortHref(col: string) {
     const params = new URLSearchParams();
+    if (q) params.set('q', q);
     if (stt) params.set('stt', stt);
     if (tts) params.set('tts', tts);
+    if (omnilingual) params.set('omnilingual', omnilingual);
+    if (ipa) params.set('ipa', ipa);
     if (babagigi) params.set('babagigi', babagigi);
     params.set('sort', col);
     params.set('dir', sortCol === col && sortDir === 'asc' ? 'desc' : 'asc');
@@ -157,46 +170,38 @@ export default async function TechReadinessPage({ searchParams }: Props) {
         })}
       </div>
 
-      <form method="GET" className="flex gap-3 mb-6 flex-wrap">
-        <select
-          name="stt"
-          defaultValue={stt ?? ''}
-          className="px-3 py-2 text-sm border border-border rounded-md bg-background text-ink focus:outline-none focus:ring-2 focus:ring-moss"
-        >
-          <option value="">All STT tiers</option>
-          {TIERS.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
-        <select
-          name="tts"
-          defaultValue={tts ?? ''}
-          className="px-3 py-2 text-sm border border-border rounded-md bg-background text-ink focus:outline-none focus:ring-2 focus:ring-moss"
-        >
-          <option value="">All TTS tiers</option>
-          {TIERS.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
-        <select
-          name="babagigi"
-          defaultValue={babagigi ?? ''}
-          className="px-3 py-2 text-sm border border-border rounded-md bg-background text-ink focus:outline-none focus:ring-2 focus:ring-moss"
-        >
-          <option value="">All languages</option>
-          <option value="true">Babagigi pipeline only</option>
-        </select>
-        <button
-          type="submit"
-          className="px-4 py-2 text-sm font-medium border border-border rounded-md hover:bg-moss/10 transition-colors"
-        >
-          Filter
-        </button>
-        {hasFilters && (
-          <Link
-            href="/admin/tech-readiness"
-            className="px-4 py-2 text-sm text-muted-foreground hover:text-ink transition-colors"
-          >
-            Clear
-          </Link>
-        )}
-      </form>
+      <Suspense>
+        <FilterBar
+          basePath="/admin/tech-readiness"
+          searchPlaceholder="Search by language name…"
+          filters={[
+            {
+              param: 'stt',
+              label: 'STT',
+              defaultLabel: 'All STT tiers',
+              options: TIERS.map((t) => ({ value: t, label: t })),
+            },
+            {
+              param: 'tts',
+              label: 'TTS',
+              defaultLabel: 'All TTS tiers',
+              options: TIERS.map((t) => ({ value: t, label: t })),
+            },
+            {
+              param: 'omnilingual',
+              label: 'Omnilingual',
+              defaultLabel: 'All',
+              options: [{ value: 'true', label: 'Supported only' }],
+            },
+            {
+              param: 'ipa',
+              label: 'IPA path',
+              defaultLabel: 'All',
+              options: [{ value: 'true', label: 'Viable only' }],
+            },
+          ]}
+        />
+      </Suspense>
 
       <div className="border border-border rounded-lg overflow-hidden">
         <table className="w-full text-sm">

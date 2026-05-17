@@ -1,6 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { ClickableRow } from '@/components/clickable-row';
+import { FilterBar } from '@/components/filter-bar';
 import { SortHeader } from '@/components/sort-header';
 import type { Database } from '@/lib/database.types';
 
@@ -90,45 +92,29 @@ export default async function OrganizationsPage({ searchParams }: Props) {
         </Link>
       </div>
 
-      <form method="GET" className="flex gap-3 mb-6 flex-wrap">
-        <input
-          name="q"
-          defaultValue={q}
-          placeholder="Search by name…"
-          className="flex-1 min-w-48 px-3 py-2 text-sm border border-border rounded-md bg-background text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-moss focus:border-transparent"
+      <Suspense>
+        <FilterBar
+          basePath="/admin/organizations"
+          searchPlaceholder="Search by name…"
+          filters={[
+            {
+              param: 'type',
+              label: 'Type',
+              defaultLabel: 'All types',
+              options: ORG_TYPES.map((t) => ({ value: t, label: t })),
+            },
+            {
+              param: 'active',
+              label: 'Status',
+              defaultLabel: 'Active + inactive',
+              options: [
+                { value: 'true', label: 'Active only' },
+                { value: 'false', label: 'Inactive only' },
+              ],
+            },
+          ]}
         />
-        <select
-          name="type"
-          defaultValue={type ?? ''}
-          className="px-3 py-2 text-sm border border-border rounded-md bg-background text-ink focus:outline-none focus:ring-2 focus:ring-moss"
-        >
-          <option value="">All types</option>
-          {ORG_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
-        <select
-          name="active"
-          defaultValue={active ?? ''}
-          className="px-3 py-2 text-sm border border-border rounded-md bg-background text-ink focus:outline-none focus:ring-2 focus:ring-moss"
-        >
-          <option value="">Active + inactive</option>
-          <option value="true">Active only</option>
-          <option value="false">Inactive only</option>
-        </select>
-        <button
-          type="submit"
-          className="px-4 py-2 text-sm font-medium border border-border rounded-md hover:bg-moss/10 transition-colors"
-        >
-          Filter
-        </button>
-        {hasFilters && (
-          <Link
-            href="/admin/organizations"
-            className="px-4 py-2 text-sm text-muted-foreground hover:text-ink transition-colors"
-          >
-            Clear
-          </Link>
-        )}
-      </form>
+      </Suspense>
 
       <div className="border border-border rounded-lg overflow-hidden">
         <table className="w-full text-sm">

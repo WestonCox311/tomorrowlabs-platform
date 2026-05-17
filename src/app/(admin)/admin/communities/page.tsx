@@ -1,6 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { InfoTooltip } from '@/components/info-tooltip';
+import { FilterBar } from '@/components/filter-bar';
 import { ClickableRow } from '@/components/clickable-row';
 import { SortHeader } from '@/components/sort-header';
 import type { Database } from '@/lib/database.types';
@@ -12,11 +14,11 @@ const COMMUNITY_TYPES = ['diaspora', 'indigenous', 'religious', 'linguistic', 'p
 const ALLOWED_SORT = ['english_name', 'community_type', 'estimated_global_population'] as const;
 
 interface Props {
-  searchParams: Promise<{ q?: string; type?: string; sort?: string; dir?: string }>;
+  searchParams: Promise<{ q?: string; type?: string; self_identified?: string; sort?: string; dir?: string }>;
 }
 
 export default async function CommunitiesPage({ searchParams }: Props) {
-  const { q, type, sort: sortParam, dir: dirParam } = await searchParams;
+  const { q, type, self_identified, sort: sortParam, dir: dirParam } = await searchParams;
 
   const sortCol = (ALLOWED_SORT as readonly string[]).includes(sortParam ?? '') ? sortParam! : 'english_name';
   const sortDir = dirParam === 'desc' ? 'desc' : 'asc';
@@ -34,6 +36,11 @@ export default async function CommunitiesPage({ searchParams }: Props) {
   if (type) {
     query = query.eq('community_type', type);
   }
+  if (self_identified === 'true') {
+    query = query.eq('is_self_identified_community', true);
+  } else if (self_identified === 'false') {
+    query = query.eq('is_self_identified_community', false);
+  }
 
   const { data, error } = await query;
   const communities = data as CommunityRow[] | null;
@@ -48,12 +55,13 @@ export default async function CommunitiesPage({ searchParams }: Props) {
     );
   }
 
-  const hasFilters = q || type;
+  const hasFilters = q || type || self_identified;
 
   function sortHref(col: string) {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (type) params.set('type', type);
+    if (self_identified) params.set('self_identified', self_identified);
     params.set('sort', col);
     params.set('dir', sortCol === col && sortDir === 'asc' ? 'desc' : 'asc');
     return `/admin/communities?${params.toString()}`;
@@ -71,36 +79,29 @@ export default async function CommunitiesPage({ searchParams }: Props) {
         </Link>
       </div>
 
-      <form method="GET" className="flex gap-3 mb-6 flex-wrap">
-        <input
-          name="q"
-          defaultValue={q}
-          placeholder="Search by name…"
-          className="flex-1 min-w-48 px-3 py-2 text-sm border border-border rounded-md bg-background text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-moss focus:border-transparent"
+      <Suspense>
+        <FilterBar
+          basePath="/admin/communities"
+          searchPlaceholder="Search by name…"
+          filters={[
+            {
+              param: 'type',
+              label: 'Type',
+              defaultLabel: 'All types',
+              options: COMMUNITY_TYPES.map((t) => ({ value: t, label: t })),
+            },
+            {
+              param: 'self_identified',
+              label: 'Self-identified',
+              defaultLabel: 'All communities',
+              options: [
+                { value: 'true', label: 'Self-identified only' },
+                { value: 'false', label: 'Not self-identified' },
+              ],
+            },
+          ]}
         />
-        <select
-          name="type"
-          defaultValue={type ?? ''}
-          className="px-3 py-2 text-sm border border-border rounded-md bg-background text-ink focus:outline-none focus:ring-2 focus:ring-moss"
-        >
-          <option value="">All types</option>
-          {COMMUNITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-        </select>
-        <button
-          type="submit"
-          className="px-4 py-2 text-sm font-medium border border-border rounded-md hover:bg-moss/10 transition-colors"
-        >
-          Filter
-        </button>
-        {hasFilters && (
-          <Link
-            href="/admin/communities"
-            className="px-4 py-2 text-sm text-muted-foreground hover:text-ink transition-colors"
-          >
-            Clear
-          </Link>
-        )}
-      </form>
+      </Suspense>
 
       <div className="border border-border rounded-lg overflow-hidden">
         <table className="w-full text-sm">

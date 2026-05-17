@@ -1,14 +1,17 @@
 import { createAdminClient as createClient } from '@/lib/supabase/admin';
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { InfoTooltip } from '@/components/info-tooltip';
 import { ClickableRow } from '@/components/clickable-row';
 import { SortHeader } from '@/components/sort-header';
+import { FilterBar } from '@/components/filter-bar';
 import type { Database } from '@/lib/database.types';
 
 type Language = Database['public']['Tables']['languages']['Row'];
 type LanguageRow = Pick<Language, 'id' | 'english_name' | 'endonym' | 'glottocode' | 'iso_639_3' | 'granularity' | 'ethnologue_status'>;
 
 const GRANULARITIES = ['macrolanguage', 'language', 'dialect', 'variety', 'register'] as const;
+const ETHNOLOGUE_STATUSES = ['International', 'National', 'Vigorous', 'Threatened', 'Shifting', 'Moribund'] as const;
 const PAGE_SIZE = 50;
 const ALLOWED_SORT = ['english_name', 'endonym', 'glottocode', 'iso_639_3', 'granularity', 'ethnologue_status'] as const;
 
@@ -29,11 +32,11 @@ const ETHNOLOGUE_COLORS: Record<string, string> = {
 };
 
 interface Props {
-  searchParams: Promise<{ q?: string; granularity?: string; babagigi?: string; page?: string; sort?: string; dir?: string }>;
+  searchParams: Promise<{ q?: string; granularity?: string; ethnologue_status?: string; is_constructed?: string; babagigi?: string; page?: string; sort?: string; dir?: string }>;
 }
 
 export default async function LanguagesPage({ searchParams }: Props) {
-  const { q, granularity, babagigi, page: pageParam, sort: sortParam, dir: dirParam } = await searchParams;
+  const { q, granularity, ethnologue_status, is_constructed, babagigi, page: pageParam, sort: sortParam, dir: dirParam } = await searchParams;
 
   const sortCol = (ALLOWED_SORT as readonly string[]).includes(sortParam ?? '') ? sortParam! : 'english_name';
   const sortDir = dirParam === 'desc' ? 'desc' : 'asc';
@@ -56,6 +59,14 @@ export default async function LanguagesPage({ searchParams }: Props) {
   if (granularity) {
     query = query.eq('granularity', granularity as (typeof GRANULARITIES)[number]);
   }
+  if (ethnologue_status) {
+    query = query.eq('ethnologue_status', ethnologue_status as (typeof ETHNOLOGUE_STATUSES)[number]);
+  }
+  if (is_constructed === 'true') {
+    query = query.eq('is_constructed', true);
+  } else if (is_constructed === 'false') {
+    query = query.eq('is_constructed', false);
+  }
   if (babagigi) {
     query = query.in('glottocode', BABAGIGI_GLOTTOCODES);
   }
@@ -65,12 +76,14 @@ export default async function LanguagesPage({ searchParams }: Props) {
   const total = count ?? 0;
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  const hasFilters = q || granularity || babagigi;
+  const hasFilters = q || granularity || ethnologue_status || is_constructed || babagigi;
 
   function sortHref(col: string) {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (granularity) params.set('granularity', granularity);
+    if (ethnologue_status) params.set('ethnologue_status', ethnologue_status);
+    if (is_constructed) params.set('is_constructed', is_constructed);
     if (babagigi) params.set('babagigi', '1');
     params.set('sort', col);
     params.set('dir', sortCol === col && sortDir === 'asc' ? 'desc' : 'asc');
@@ -81,6 +94,8 @@ export default async function LanguagesPage({ searchParams }: Props) {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (granularity) params.set('granularity', granularity);
+    if (ethnologue_status) params.set('ethnologue_status', ethnologue_status);
+    if (is_constructed) params.set('is_constructed', is_constructed);
     if (babagigi) params.set('babagigi', '1');
     if (sortCol !== 'english_name') params.set('sort', sortCol);
     if (sortDir !== 'asc') params.set('dir', sortDir);
@@ -110,38 +125,35 @@ export default async function LanguagesPage({ searchParams }: Props) {
         </Link>
       </div>
 
-      <form method="GET" className="flex flex-wrap gap-3 mb-4">
-        <input
-          name="q"
-          defaultValue={q}
-          placeholder="Search by name, glottocode, ISO code…"
-          className="flex-1 min-w-48 px-3 py-2 text-sm border border-border rounded-md bg-background text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-moss focus:border-transparent"
+      <Suspense>
+        <FilterBar
+          basePath="/admin/languages"
+          searchPlaceholder="Search by name, glottocode, ISO code…"
+          filters={[
+            {
+              param: 'granularity',
+              label: 'Granularity',
+              defaultLabel: 'All granularities',
+              options: GRANULARITIES.map((g) => ({ value: g, label: g })),
+            },
+            {
+              param: 'ethnologue_status',
+              label: 'Ethnologue',
+              defaultLabel: 'All statuses',
+              options: ETHNOLOGUE_STATUSES.map((s) => ({ value: s, label: s })),
+            },
+            {
+              param: 'is_constructed',
+              label: 'Type',
+              defaultLabel: 'All types',
+              options: [
+                { value: 'false', label: 'Natural only' },
+                { value: 'true', label: 'Constructed only' },
+              ],
+            },
+          ]}
         />
-        <select
-          name="granularity"
-          defaultValue={granularity ?? ''}
-          className="px-3 py-2 text-sm border border-border rounded-md bg-background text-ink focus:outline-none focus:ring-2 focus:ring-moss"
-        >
-          <option value="">All granularities</option>
-          {GRANULARITIES.map((g) => (
-            <option key={g} value={g}>{g}</option>
-          ))}
-        </select>
-        <button
-          type="submit"
-          className="px-4 py-2 text-sm font-medium border border-border rounded-md hover:bg-moss/10 transition-colors"
-        >
-          Filter
-        </button>
-        {hasFilters && (
-          <Link
-            href="/admin/languages"
-            className="px-4 py-2 text-sm text-muted-foreground hover:text-ink transition-colors"
-          >
-            Clear
-          </Link>
-        )}
-      </form>
+      </Suspense>
 
       {/* Preset filters */}
       <div className="flex gap-2 mb-6">

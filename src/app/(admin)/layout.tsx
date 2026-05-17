@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { signOut } from '@/app/actions/auth';
-import { SidebarNav } from '@/components/sidebar-nav';
+import { SidebarNav, SidebarUtilityLinks } from '@/components/sidebar-nav';
 
 export default function AdminLayout({
   children,
@@ -29,12 +29,11 @@ export default function AdminLayout({
           </Link>
         </div>
 
-        <nav className="flex-1 px-3 py-3">
-          <p className="px-3 py-1 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-1">
-            Spine entities
-          </p>
+        <nav className="flex-1 px-3 py-3 overflow-y-auto">
           <SidebarNav />
         </nav>
+
+        <SidebarUtilityLinks />
 
         <div className="px-3 py-4 border-t border-border">
           <form action={signOut}>

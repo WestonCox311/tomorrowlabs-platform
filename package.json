@@ -12,6 +12,11 @@
     "seed:geonames": "tsx scripts/seed-geonames.ts",
     "seed:endonyms": "tsx scripts/seed-endonyms.ts",
     "seed:tech-readiness": "tsx scripts/seed-tech-readiness.ts",
+    "seed:wikidata": "tsx scripts/seed-wikidata-enrichment.ts",
+    "seed:wals": "tsx scripts/seed-wals.ts",
+    "seed:common-voice": "tsx scripts/seed-common-voice.ts",
+    "seed:glottolog-endangerment": "tsx scripts/seed-glottolog-endangerment.ts",
+    "seed:iso639": "tsx scripts/seed-iso639.ts",
     "seed:all": "npm run seed:glottolog && npm run seed:geonames && npm run seed:endonyms",
     "types:generate": "supabase gen types typescript --project-id mufemokeeftjklqemqyc > src/lib/database.types.ts"
   },
