@@ -11,7 +11,8 @@
     "seed:glottolog": "tsx scripts/seed-glottolog.ts",
     "seed:geonames": "tsx scripts/seed-geonames.ts",
     "seed:endonyms": "tsx scripts/seed-endonyms.ts",
-    "seed:all": "npm run seed:glottolog && npm run seed:geonames && npm run seed:endonyms"
+    "seed:all": "npm run seed:glottolog && npm run seed:geonames && npm run seed:endonyms",
+    "types:generate": "supabase gen types typescript --project-id mufemokeeftjklqemqyc > src/lib/database.types.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.4.1",
