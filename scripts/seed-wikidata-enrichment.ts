@@ -25,9 +25,9 @@
 import { supabase } from './lib/supabase';
 
 const SPARQL_ENDPOINT = 'https://query.wikidata.org/sparql';
-const SPARQL_BATCH = 200;   // glottocodes per query — keep each query cheap
-const BATCH_DELAY_MS = 2000; // 2s between batches — polite but fast
-const MAX_RETRIES = 4;
+const SPARQL_BATCH = 100;   // glottocodes per query — smaller = less chance of timeout
+const BATCH_DELAY_MS = 3000; // 3s between batches
+const MAX_RETRIES = 5;
 const SOURCE_ID = '11111111-0000-0000-0000-000000000002';
 const INSERT_BATCH = 500;
 const UPDATE_BATCH = 50;
@@ -241,7 +241,9 @@ async function main() {
   }, { onConflict: 'id' });
   if (srcErr) throw new Error(`Source upsert failed: ${srcErr.message}`);
 
-  console.log('=== Wikidata Enrichment Seed ===\n');
+  console.log('=== Wikidata Enrichment Seed (VALUES batching) ===\n');
+  console.log('Pausing 5s before first request...');
+  await sleep(5000);
 
   // Load all DB languages with glottocodes
   console.log('Loading languages from database...');
