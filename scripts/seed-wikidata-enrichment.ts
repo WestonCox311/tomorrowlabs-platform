@@ -64,8 +64,7 @@ async function sparqlQuery<T extends Binding>(query: string): Promise<T[]> {
       continue;
     }
 
-    if (res.status === 504 || res.status === 500) {
-      // Gateway timeout or server error — retry with backoff
+    if (res.status === 500 || res.status === 502 || res.status === 504) {
       const waitMs = 5000 * attempt;
       process.stdout.write(`\n  HTTP ${res.status} — waiting ${waitMs / 1000}s (attempt ${attempt}/${MAX_RETRIES})...`);
       await sleep(waitMs);
