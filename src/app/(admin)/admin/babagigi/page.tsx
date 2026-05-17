@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import Link from 'next/link';
 import { InfoTooltip } from '@/components/info-tooltip';
+import { SortHeader } from '@/components/sort-header';
 
 const WAVES = [
   {
@@ -45,7 +46,26 @@ const ETHNOLOGUE_COLORS: Record<string, string> = {
   Moribund: 'text-red-700',
 };
 
-export default async function BabagigPipelinePage() {
+const TIER_ORDER: Record<string, number> = { production: 0, usable: 1, experimental: 2, none: 3 };
+const ETHNOLOGUE_ORDER: Record<string, number> = {
+  International: 0, National: 1, Vigorous: 2, Threatened: 3, Shifting: 4, Moribund: 5,
+};
+const STATUS_ORDER: Record<string, number> = {
+  live: 0, 'in-development': 1, planned: 2, deferred: 3, sunset: 4,
+};
+
+const ALLOWED_SORT = ['language', 'ethnologue_status', 'stt', 'tts', 'status'] as const;
+
+interface Props {
+  searchParams: Promise<{ sort?: string; dir?: string }>;
+}
+
+export default async function BabagigPipelinePage({ searchParams }: Props) {
+  const { sort: sortParam, dir: dirParam } = await searchParams;
+
+  const sortCol = (ALLOWED_SORT as readonly string[]).includes(sortParam ?? '') ? sortParam! : 'language';
+  const sortDir = dirParam === 'desc' ? 'desc' : 'asc';
+
   const supabase = createAdminClient();
 
   const [pipelineResult, communitiesResult, techResult] = await Promise.all([
@@ -96,9 +116,48 @@ export default async function BabagigPipelinePage() {
     }
   }
 
-  // Group pipeline entries by wave
+  // Sort pipeline entries within each wave
+  const sortedPipeline = [...pipeline].sort((a, b) => {
+    const mul = sortDir === 'asc' ? 1 : -1;
+    const langA = Array.isArray(a.languages) ? a.languages[0] : a.languages;
+    const langB = Array.isArray(b.languages) ? b.languages[0] : b.languages;
+
+    // Always group by wave first
+    const waveA = a.wave ?? '';
+    const waveB = b.wave ?? '';
+    if (waveA !== waveB) return waveA.localeCompare(waveB);
+
+    switch (sortCol) {
+      case 'language':
+        return mul * (langA?.english_name ?? '').localeCompare(langB?.english_name ?? '');
+      case 'ethnologue_status': {
+        const oa = ETHNOLOGUE_ORDER[langA?.ethnologue_status ?? ''] ?? 99;
+        const ob = ETHNOLOGUE_ORDER[langB?.ethnologue_status ?? ''] ?? 99;
+        return mul * (oa - ob);
+      }
+      case 'stt': {
+        const oa = TIER_ORDER[techByLang[a.language_id]?.stt ?? 'none'] ?? 99;
+        const ob = TIER_ORDER[techByLang[b.language_id]?.stt ?? 'none'] ?? 99;
+        return mul * (oa - ob);
+      }
+      case 'tts': {
+        const oa = TIER_ORDER[techByLang[a.language_id]?.tts ?? 'none'] ?? 99;
+        const ob = TIER_ORDER[techByLang[b.language_id]?.tts ?? 'none'] ?? 99;
+        return mul * (oa - ob);
+      }
+      case 'status': {
+        const oa = STATUS_ORDER[a.status ?? ''] ?? 99;
+        const ob = STATUS_ORDER[b.status ?? ''] ?? 99;
+        return mul * (oa - ob);
+      }
+      default:
+        return 0;
+    }
+  });
+
+  // Group by wave (preserving sorted order within each wave)
   const byWave: Record<string, typeof pipeline> = {};
-  for (const entry of pipeline) {
+  for (const entry of sortedPipeline) {
     const w = entry.wave ?? 'unassigned';
     if (!byWave[w]) byWave[w] = [];
     byWave[w].push(entry);
@@ -108,6 +167,13 @@ export default async function BabagigPipelinePage() {
   const totalWithCommunities = pipeline.filter(
     (p) => (commCountByLang[p.language_id]?.count ?? 0) > 0
   ).length;
+
+  function sortHref(col: string) {
+    const params = new URLSearchParams();
+    params.set('sort', col);
+    params.set('dir', sortCol === col && sortDir === 'asc' ? 'desc' : 'asc');
+    return `/admin/babagigi?${params.toString()}`;
+  }
 
   return (
     <div className="p-8 max-w-4xl">
@@ -164,28 +230,30 @@ export default async function BabagigPipelinePage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-border bg-muted/30">
-                        <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Language</th>
                         <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">
-                          <span className="flex items-center gap-0.5">
-                            Ethnologue
+                          <SortHeader href={sortHref('language')} label="Language" isActive={sortCol === 'language'} isAsc={sortDir === 'asc'} />
+                        </th>
+                        <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <SortHeader href={sortHref('ethnologue_status')} label="Ethnologue" isActive={sortCol === 'ethnologue_status'} isAsc={sortDir === 'asc'} />
                             <InfoTooltip text="EGIDS classification: International = used globally; National = official in a country; Vigorous = all generations actively use it; Threatened = not being passed to children at the rate needed for long-term survival." side="top" />
                           </span>
                         </th>
                         <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">
-                          <span className="flex items-center gap-0.5">
-                            STT
+                          <span className="flex items-center gap-1">
+                            <SortHeader href={sortHref('stt')} label="STT" isActive={sortCol === 'stt'} isAsc={sortDir === 'asc'} />
                             <InfoTooltip text="Speech-to-text quality: production = commercial-grade; usable = functional with review; experimental = research-stage; none = no viable solution." side="top" />
                           </span>
                         </th>
                         <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">
-                          <span className="flex items-center gap-0.5">
-                            TTS
+                          <span className="flex items-center gap-1">
+                            <SortHeader href={sortHref('tts')} label="TTS" isActive={sortCol === 'tts'} isAsc={sortDir === 'asc'} />
                             <InfoTooltip text="Text-to-speech quality. Same scale as STT." side="top" />
                           </span>
                         </th>
                         <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">
-                          <span className="flex items-center gap-0.5">
-                            Status
+                          <span className="flex items-center gap-1">
+                            <SortHeader href={sortHref('status')} label="Status" isActive={sortCol === 'status'} isAsc={sortDir === 'asc'} />
                             <InfoTooltip text="Pipeline status for this language in Babagigi: planned = queued for development; in-development = actively being built; live = available to users; deferred = postponed." side="top" />
                           </span>
                         </th>

@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import Link from 'next/link';
 import { ClickableRow } from '@/components/clickable-row';
+import { SortHeader } from '@/components/sort-header';
 import type { Database } from '@/lib/database.types';
 
 type Organization = Database['public']['Tables']['organizations']['Row'];
@@ -21,18 +22,24 @@ const TYPE_COLORS: Partial<Record<Database['public']['Enums']['organization_type
   'competitor': 'bg-rust/10 text-rust',
 };
 
+const ALLOWED_SORT = ['legal_name', 'organization_type', 'geographic_scope', 'founding_year', 'is_active'] as const;
+
 interface Props {
-  searchParams: Promise<{ q?: string; type?: string; active?: string }>;
+  searchParams: Promise<{ q?: string; type?: string; active?: string; sort?: string; dir?: string }>;
 }
 
 export default async function OrganizationsPage({ searchParams }: Props) {
-  const { q, type, active } = await searchParams;
+  const { q, type, active, sort: sortParam, dir: dirParam } = await searchParams;
+
+  const sortCol = (ALLOWED_SORT as readonly string[]).includes(sortParam ?? '') ? sortParam! : 'legal_name';
+  const sortDir = dirParam === 'desc' ? 'desc' : 'asc';
+
   const supabase = createAdminClient();
 
   let query = supabase
     .from('organizations')
     .select('id, legal_name, display_name, organization_type, is_active, founding_year, geographic_scope')
-    .order('legal_name');
+    .order(sortCol, { ascending: sortDir === 'asc', nullsFirst: false });
 
   if (q) {
     query = query.or(`legal_name.ilike.%${q}%,display_name.ilike.%${q}%`);
@@ -60,6 +67,16 @@ export default async function OrganizationsPage({ searchParams }: Props) {
   }
 
   const hasFilters = q || type || active;
+
+  function sortHref(col: string) {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (type) params.set('type', type);
+    if (active) params.set('active', active);
+    params.set('sort', col);
+    params.set('dir', sortCol === col && sortDir === 'asc' ? 'desc' : 'asc');
+    return `/admin/organizations?${params.toString()}`;
+  }
 
   return (
     <div className="p-8">
@@ -117,11 +134,21 @@ export default async function OrganizationsPage({ searchParams }: Props) {
         <table className="w-full text-sm">
           <thead className="bg-muted/50 border-b border-border">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Scope</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Founded</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Active</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                <SortHeader href={sortHref('legal_name')} label="Name" isActive={sortCol === 'legal_name'} isAsc={sortDir === 'asc'} />
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                <SortHeader href={sortHref('organization_type')} label="Type" isActive={sortCol === 'organization_type'} isAsc={sortDir === 'asc'} />
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                <SortHeader href={sortHref('geographic_scope')} label="Scope" isActive={sortCol === 'geographic_scope'} isAsc={sortDir === 'asc'} />
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                <SortHeader href={sortHref('founding_year')} label="Founded" isActive={sortCol === 'founding_year'} isAsc={sortDir === 'asc'} />
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                <SortHeader href={sortHref('is_active')} label="Active" isActive={sortCol === 'is_active'} isAsc={sortDir === 'asc'} />
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">

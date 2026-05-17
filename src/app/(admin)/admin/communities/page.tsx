@@ -2,25 +2,31 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import Link from 'next/link';
 import { InfoTooltip } from '@/components/info-tooltip';
 import { ClickableRow } from '@/components/clickable-row';
+import { SortHeader } from '@/components/sort-header';
 import type { Database } from '@/lib/database.types';
 
 type Community = Database['public']['Tables']['communities']['Row'];
 type CommunityRow = Pick<Community, 'id' | 'english_name' | 'endonym' | 'community_type' | 'estimated_global_population' | 'estimated_population_confidence' | 'is_self_identified_community'>;
 
 const COMMUNITY_TYPES = ['diaspora', 'indigenous', 'religious', 'linguistic', 'professional', 'cultural'] as const;
+const ALLOWED_SORT = ['english_name', 'community_type', 'estimated_global_population'] as const;
 
 interface Props {
-  searchParams: Promise<{ q?: string; type?: string }>;
+  searchParams: Promise<{ q?: string; type?: string; sort?: string; dir?: string }>;
 }
 
 export default async function CommunitiesPage({ searchParams }: Props) {
-  const { q, type } = await searchParams;
+  const { q, type, sort: sortParam, dir: dirParam } = await searchParams;
+
+  const sortCol = (ALLOWED_SORT as readonly string[]).includes(sortParam ?? '') ? sortParam! : 'english_name';
+  const sortDir = dirParam === 'desc' ? 'desc' : 'asc';
+
   const supabase = createAdminClient();
 
   let query = supabase
     .from('communities')
     .select('id, english_name, endonym, community_type, estimated_global_population, estimated_population_confidence, is_self_identified_community')
-    .order('english_name');
+    .order(sortCol, { ascending: sortDir === 'asc', nullsFirst: false });
 
   if (q) {
     query = query.ilike('english_name', `%${q}%`);
@@ -43,6 +49,15 @@ export default async function CommunitiesPage({ searchParams }: Props) {
   }
 
   const hasFilters = q || type;
+
+  function sortHref(col: string) {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (type) params.set('type', type);
+    params.set('sort', col);
+    params.set('dir', sortCol === col && sortDir === 'asc' ? 'desc' : 'asc');
+    return `/admin/communities?${params.toString()}`;
+  }
 
   return (
     <div className="p-8">
@@ -91,16 +106,20 @@ export default async function CommunitiesPage({ searchParams }: Props) {
         <table className="w-full text-sm">
           <thead className="bg-muted/50 border-b border-border">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                <span className="flex items-center gap-0.5">
-                  Est. population
+                <SortHeader href={sortHref('english_name')} label="Name" isActive={sortCol === 'english_name'} isAsc={sortDir === 'asc'} />
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                <SortHeader href={sortHref('community_type')} label="Type" isActive={sortCol === 'community_type'} isAsc={sortDir === 'asc'} />
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <SortHeader href={sortHref('estimated_global_population')} label="Est. population" isActive={sortCol === 'estimated_global_population'} isAsc={sortDir === 'asc'} />
                   <InfoTooltip text="Estimated global population of this community. The confidence level in parentheses indicates how reliable the estimate is: high = census-grade data; medium = reliable secondary sources; low = extrapolated; estimated = best guess from indirect evidence." />
                 </span>
               </th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                <span className="flex items-center gap-0.5">
+                <span className="flex items-center gap-1">
                   Self-identified
                   <InfoTooltip text="Whether this community self-identifies as a community. TomorrowLabs only records communities that have defined themselves — we don't impose groupings onto people." />
                 </span>

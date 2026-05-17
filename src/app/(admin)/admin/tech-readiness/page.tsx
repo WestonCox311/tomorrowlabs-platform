@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import Link from 'next/link';
 import { InfoTooltip } from '@/components/info-tooltip';
 import { ClickableRow } from '@/components/clickable-row';
+import { SortHeader } from '@/components/sort-header';
 import type { Database } from '@/lib/database.types';
 
 type TechQuality = Database['public']['Enums']['tech_quality_tier'];
@@ -15,6 +16,8 @@ const TIER_COLORS: Record<TechQuality, string> = {
 
 const TIERS: TechQuality[] = ['production', 'usable', 'experimental', 'none'];
 
+const TIER_ORDER: Record<string, number> = { production: 0, usable: 1, experimental: 2, none: 3 };
+
 function TierBadge({ tier }: { tier: TechQuality | null }) {
   if (!tier) return <span className="text-muted-foreground">—</span>;
   return (
@@ -24,12 +27,18 @@ function TierBadge({ tier }: { tier: TechQuality | null }) {
   );
 }
 
+const ALLOWED_SORT = ['english_name', 'stt_quality_tier', 'tts_quality_tier', 'omnilingual_cer', 'common_voice_hours_validated', 'assessed_at'] as const;
+
 interface Props {
-  searchParams: Promise<{ stt?: string; tts?: string; babagigi?: string }>;
+  searchParams: Promise<{ stt?: string; tts?: string; babagigi?: string; sort?: string; dir?: string }>;
 }
 
 export default async function TechReadinessPage({ searchParams }: Props) {
-  const { stt, tts, babagigi } = await searchParams;
+  const { stt, tts, babagigi, sort: sortParam, dir: dirParam } = await searchParams;
+
+  const sortCol = (ALLOWED_SORT as readonly string[]).includes(sortParam ?? '') ? sortParam! : 'stt_quality_tier';
+  const sortDir = dirParam === 'desc' ? 'desc' : 'asc';
+
   const supabase = createAdminClient();
 
   const [trResult, babagigResult] = await Promise.all([
@@ -51,9 +60,7 @@ export default async function TechReadinessPage({ searchParams }: Props) {
           endonym,
           glottocode
         )
-      `)
-      .order('stt_quality_tier')
-      .order('tts_quality_tier'),
+      `),
 
     supabase
       .from('product_status')
@@ -70,7 +77,59 @@ export default async function TechReadinessPage({ searchParams }: Props) {
   if (tts) rows = rows.filter((r) => r.tts_quality_tier === tts);
   if (babagigi === 'true') rows = rows.filter((r) => babagigLangIds.has(r.language_id));
 
+  // JS sort
+  rows = [...rows].sort((a, b) => {
+    const mul = sortDir === 'asc' ? 1 : -1;
+    const langA = Array.isArray(a.languages) ? a.languages[0] : a.languages;
+    const langB = Array.isArray(b.languages) ? b.languages[0] : b.languages;
+
+    switch (sortCol) {
+      case 'english_name': {
+        const na = langA?.english_name ?? '';
+        const nb = langB?.english_name ?? '';
+        return mul * na.localeCompare(nb);
+      }
+      case 'stt_quality_tier': {
+        const wa = TIER_ORDER[a.stt_quality_tier ?? 'none'] ?? 99;
+        const wb = TIER_ORDER[b.stt_quality_tier ?? 'none'] ?? 99;
+        return mul * (wa - wb);
+      }
+      case 'tts_quality_tier': {
+        const wa = TIER_ORDER[a.tts_quality_tier ?? 'none'] ?? 99;
+        const wb = TIER_ORDER[b.tts_quality_tier ?? 'none'] ?? 99;
+        return mul * (wa - wb);
+      }
+      case 'omnilingual_cer': {
+        const ca = a.omnilingual_cer ?? Infinity;
+        const cb = b.omnilingual_cer ?? Infinity;
+        return mul * (ca - cb);
+      }
+      case 'common_voice_hours_validated': {
+        const ha = a.common_voice_hours_validated ?? -1;
+        const hb = b.common_voice_hours_validated ?? -1;
+        return mul * (hb - ha); // higher hours = better, so invert for asc
+      }
+      case 'assessed_at': {
+        const da = a.assessed_at ?? '';
+        const db = b.assessed_at ?? '';
+        return mul * da.localeCompare(db);
+      }
+      default:
+        return 0;
+    }
+  });
+
   const hasFilters = stt || tts || babagigi;
+
+  function sortHref(col: string) {
+    const params = new URLSearchParams();
+    if (stt) params.set('stt', stt);
+    if (tts) params.set('tts', tts);
+    if (babagigi) params.set('babagigi', babagigi);
+    params.set('sort', col);
+    params.set('dir', sortCol === col && sortDir === 'asc' ? 'desc' : 'asc');
+    return `/admin/tech-readiness?${params.toString()}`;
+  }
 
   return (
     <div className="p-8">
@@ -143,38 +202,42 @@ export default async function TechReadinessPage({ searchParams }: Props) {
         <table className="w-full text-sm">
           <thead className="bg-muted/50 border-b border-border">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Language</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                <span className="flex items-center gap-0.5">
-                  STT
+                <SortHeader href={sortHref('english_name')} label="Language" isActive={sortCol === 'english_name'} isAsc={sortDir === 'asc'} />
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <SortHeader href={sortHref('stt_quality_tier')} label="STT" isActive={sortCol === 'stt_quality_tier'} isAsc={sortDir === 'asc'} />
                   <InfoTooltip text="Speech-to-Text quality tier: production = commercial-grade; usable = functional with review; experimental = research-stage; none = no viable solution." />
                 </span>
               </th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                <span className="flex items-center gap-0.5">
-                  TTS
+                <span className="flex items-center gap-1">
+                  <SortHeader href={sortHref('tts_quality_tier')} label="TTS" isActive={sortCol === 'tts_quality_tier'} isAsc={sortDir === 'asc'} />
                   <InfoTooltip text="Text-to-Speech quality tier. Same scale as STT." />
                 </span>
               </th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                <span className="flex items-center gap-0.5">
-                  Omnilingual
+                <span className="flex items-center gap-1">
+                  <SortHeader href={sortHref('omnilingual_cer')} label="Omnilingual" isActive={sortCol === 'omnilingual_cer'} isAsc={sortDir === 'asc'} />
                   <InfoTooltip text="Whether Meta's Omnilingual ASR (1600+ languages, Apache 2.0) supports this language. CER = Character Error Rate — below 10% is production-viable." />
                 </span>
               </th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                <span className="flex items-center gap-0.5">
-                  CV hours
+                <span className="flex items-center gap-1">
+                  <SortHeader href={sortHref('common_voice_hours_validated')} label="CV hours" isActive={sortCol === 'common_voice_hours_validated'} isAsc={sortDir === 'asc'} />
                   <InfoTooltip text="Hours of validated audio in Mozilla Common Voice (CC0). Higher = more fine-tuning data available." />
                 </span>
               </th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                <span className="flex items-center gap-0.5">
+                <span className="flex items-center gap-1">
                   IPA path
                   <InfoTooltip text="Whether a text-to-IPA-to-phoneme TTS pipeline is viable for this language. An alternative path for languages without commercial TTS." />
                 </span>
               </th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Assessed</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                <SortHeader href={sortHref('assessed_at')} label="Assessed" isActive={sortCol === 'assessed_at'} isAsc={sortDir === 'asc'} />
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">

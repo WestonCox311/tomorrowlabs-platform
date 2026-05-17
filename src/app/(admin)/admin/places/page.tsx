@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import Link from 'next/link';
 import { InfoTooltip } from '@/components/info-tooltip';
 import { ClickableRow } from '@/components/clickable-row';
+import { SortHeader } from '@/components/sort-header';
 import type { Database } from '@/lib/database.types';
 
 type Place = Database['public']['Tables']['places']['Row'];
@@ -16,18 +17,24 @@ const STATUSES: Database['public']['Enums']['place_status'][] = [
   'active', 'historical', 'disputed', 'depopulated',
 ];
 
+const ALLOWED_SORT = ['english_name', 'endonym', 'granularity', 'iso_3166_1_alpha2', 'status'] as const;
+
 interface Props {
-  searchParams: Promise<{ q?: string; granularity?: string; status?: string }>;
+  searchParams: Promise<{ q?: string; granularity?: string; status?: string; sort?: string; dir?: string }>;
 }
 
 export default async function PlacesPage({ searchParams }: Props) {
-  const { q, granularity, status } = await searchParams;
+  const { q, granularity, status, sort: sortParam, dir: dirParam } = await searchParams;
+
+  const sortCol = (ALLOWED_SORT as readonly string[]).includes(sortParam ?? '') ? sortParam! : 'english_name';
+  const sortDir = dirParam === 'desc' ? 'desc' : 'asc';
+
   const supabase = createAdminClient();
 
   let query = supabase
     .from('places')
     .select('id, english_name, endonym, granularity, status, iso_3166_1_alpha2, parent_place_id')
-    .order('english_name');
+    .order(sortCol, { ascending: sortDir === 'asc', nullsFirst: false });
 
   if (q) {
     query = query.or(`english_name.ilike.%${q}%,geonames_id.ilike.%${q}%,iso_3166_1_alpha2.ilike.%${q}%,iso_3166_1_alpha3.ilike.%${q}%`);
@@ -53,6 +60,16 @@ export default async function PlacesPage({ searchParams }: Props) {
   }
 
   const hasFilters = q || granularity || status;
+
+  function sortHref(col: string) {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (granularity) params.set('granularity', granularity);
+    if (status) params.set('status', status);
+    params.set('sort', col);
+    params.set('dir', sortCol === col && sortDir === 'asc' ? 'desc' : 'asc');
+    return `/admin/places?${params.toString()}`;
+  }
 
   return (
     <div className="p-8">
@@ -109,23 +126,27 @@ export default async function PlacesPage({ searchParams }: Props) {
         <table className="w-full text-sm">
           <thead className="bg-muted/50 border-b border-border">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Endonym</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                <span className="flex items-center gap-0.5">
-                  Granularity
+                <SortHeader href={sortHref('english_name')} label="Name" isActive={sortCol === 'english_name'} isAsc={sortDir === 'asc'} />
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                <SortHeader href={sortHref('endonym')} label="Endonym" isActive={sortCol === 'endonym'} isAsc={sortDir === 'asc'} />
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <SortHeader href={sortHref('granularity')} label="Granularity" isActive={sortCol === 'granularity'} isAsc={sortDir === 'asc'} />
                   <InfoTooltip text="How specific this place is in the geographic hierarchy: country, state-province, metro-area, indigenous-territory, community-designated, etc." />
                 </span>
               </th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                <span className="flex items-center gap-0.5">
-                  ISO α2
+                <span className="flex items-center gap-1">
+                  <SortHeader href={sortHref('iso_3166_1_alpha2')} label="ISO α2" isActive={sortCol === 'iso_3166_1_alpha2'} isAsc={sortDir === 'asc'} />
                   <InfoTooltip text="ISO 3166-1 alpha-2 two-letter country code (e.g. 'US', 'KH' for Cambodia). Only applies to countries." />
                 </span>
               </th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                <span className="flex items-center gap-0.5">
-                  Status
+                <span className="flex items-center gap-1">
+                  <SortHeader href={sortHref('status')} label="Status" isActive={sortCol === 'status'} isAsc={sortDir === 'asc'} />
                   <InfoTooltip text="Active = currently exists; Historical = no longer exists as named; Disputed = political status contested; Depopulated = place exists but is uninhabited." />
                 </span>
               </th>

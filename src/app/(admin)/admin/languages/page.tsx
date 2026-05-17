@@ -2,6 +2,7 @@ import { createAdminClient as createClient } from '@/lib/supabase/admin';
 import Link from 'next/link';
 import { InfoTooltip } from '@/components/info-tooltip';
 import { ClickableRow } from '@/components/clickable-row';
+import { SortHeader } from '@/components/sort-header';
 import type { Database } from '@/lib/database.types';
 
 type Language = Database['public']['Tables']['languages']['Row'];
@@ -9,6 +10,7 @@ type LanguageRow = Pick<Language, 'id' | 'english_name' | 'endonym' | 'glottocod
 
 const GRANULARITIES = ['macrolanguage', 'language', 'dialect', 'variety', 'register'] as const;
 const PAGE_SIZE = 50;
+const ALLOWED_SORT = ['english_name', 'endonym', 'glottocode', 'iso_639_3', 'granularity', 'ethnologue_status'] as const;
 
 const BABAGIGI_GLOTTOCODES = [
   'stan1288','mand1415','taga1270','viet1252','kore1280','stan1318','stan1290','port1283',
@@ -27,11 +29,15 @@ const ETHNOLOGUE_COLORS: Record<string, string> = {
 };
 
 interface Props {
-  searchParams: Promise<{ q?: string; granularity?: string; babagigi?: string; page?: string }>;
+  searchParams: Promise<{ q?: string; granularity?: string; babagigi?: string; page?: string; sort?: string; dir?: string }>;
 }
 
 export default async function LanguagesPage({ searchParams }: Props) {
-  const { q, granularity, babagigi, page: pageParam } = await searchParams;
+  const { q, granularity, babagigi, page: pageParam, sort: sortParam, dir: dirParam } = await searchParams;
+
+  const sortCol = (ALLOWED_SORT as readonly string[]).includes(sortParam ?? '') ? sortParam! : 'english_name';
+  const sortDir = dirParam === 'desc' ? 'desc' : 'asc';
+
   const page = Math.max(1, parseInt(pageParam ?? '1', 10) || 1);
   const from = (page - 1) * PAGE_SIZE;
   const to = from + PAGE_SIZE - 1;
@@ -41,7 +47,7 @@ export default async function LanguagesPage({ searchParams }: Props) {
   let query = supabase
     .from('languages')
     .select('id, english_name, endonym, glottocode, iso_639_3, granularity, ethnologue_status', { count: 'exact' })
-    .order('english_name')
+    .order(sortCol, { ascending: sortDir === 'asc', nullsFirst: false })
     .range(from, to);
 
   if (q) {
@@ -61,11 +67,23 @@ export default async function LanguagesPage({ searchParams }: Props) {
 
   const hasFilters = q || granularity || babagigi;
 
+  function sortHref(col: string) {
+    const params = new URLSearchParams();
+    if (q) params.set('q', q);
+    if (granularity) params.set('granularity', granularity);
+    if (babagigi) params.set('babagigi', '1');
+    params.set('sort', col);
+    params.set('dir', sortCol === col && sortDir === 'asc' ? 'desc' : 'asc');
+    return `/admin/languages?${params.toString()}`;
+  }
+
   function pageHref(p: number) {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
     if (granularity) params.set('granularity', granularity);
     if (babagigi) params.set('babagigi', '1');
+    if (sortCol !== 'english_name') params.set('sort', sortCol);
+    if (sortDir !== 'asc') params.set('dir', sortDir);
     params.set('page', String(p));
     return `/admin/languages?${params.toString()}`;
   }
@@ -143,29 +161,33 @@ export default async function LanguagesPage({ searchParams }: Props) {
         <table className="w-full text-sm">
           <thead className="bg-muted/50 border-b border-border">
             <tr>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Endonym</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                <span className="flex items-center gap-0.5">
-                  Glottocode
+                <SortHeader href={sortHref('english_name')} label="Name" isActive={sortCol === 'english_name'} isAsc={sortDir === 'asc'} />
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                <SortHeader href={sortHref('endonym')} label="Endonym" isActive={sortCol === 'endonym'} isAsc={sortDir === 'asc'} />
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <SortHeader href={sortHref('glottocode')} label="Glottocode" isActive={sortCol === 'glottocode'} isAsc={sortDir === 'asc'} />
                   <InfoTooltip text="Glottolog's unique identifier — the primary key for cross-database joins. Example: 'stan1288' for Spanish." />
                 </span>
               </th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                <span className="flex items-center gap-0.5">
-                  ISO 639-3
+                <span className="flex items-center gap-1">
+                  <SortHeader href={sortHref('iso_639_3')} label="ISO 639-3" isActive={sortCol === 'iso_639_3'} isAsc={sortDir === 'asc'} />
                   <InfoTooltip text="Three-letter code from the ISO 639-3 standard, maintained by SIL International. Not all languages have one — Glottolog is more comprehensive." />
                 </span>
               </th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                <span className="flex items-center gap-0.5">
-                  Granularity
+                <span className="flex items-center gap-1">
+                  <SortHeader href={sortHref('granularity')} label="Granularity" isActive={sortCol === 'granularity'} isAsc={sortDir === 'asc'} />
                   <InfoTooltip text="How specific this record is: 'language' = a distinct L1 language; 'dialect' = a regional variant; 'variety' = a functional variant (e.g. written Arabic); 'macrolanguage' = an umbrella term for closely related languages." />
                 </span>
               </th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">
-                <span className="flex items-center gap-0.5">
-                  Ethnologue
+                <span className="flex items-center gap-1">
+                  <SortHeader href={sortHref('ethnologue_status')} label="Ethnologue" isActive={sortCol === 'ethnologue_status'} isAsc={sortDir === 'asc'} />
                   <InfoTooltip text="Ethnologue EGIDS level: International = used globally; National = official in a country; Vigorous = all generations actively use it; Threatened = children are not learning it at the rate needed to sustain it." />
                 </span>
               </th>
