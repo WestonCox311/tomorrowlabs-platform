@@ -178,21 +178,48 @@ async function fetchWritingSystems(glottocodes: string[]): Promise<Map<string, S
 
 const UNESCO_LABEL_MAP: Record<string, string> = {
   'safe language': 'safe',
+  'safe': 'safe',
   'vulnerable language': 'vulnerable',
+  'vulnerable': 'vulnerable',
   'definitely endangered language': 'definitely-endangered',
+  'definitely endangered': 'definitely-endangered',
   'severely endangered language': 'severely-endangered',
+  'severely endangered': 'severely-endangered',
   'critically endangered language': 'critically-endangered',
+  'critically endangered': 'critically-endangered',
   'extinct language': 'extinct',
+  'extinct': 'extinct',
 };
 
-async function fetchUNESCOVitality(glottocodes: string[]): Promise<Map<string, string>> {
+async function buildVitalityQIDMap(): Promise<Map<string, string>> {
+  // Discover the ~6 Q-items Wikidata uses for P1999 values and their English labels.
+  // This is a tiny query (no batching needed) — P1999 has very few distinct values.
+  console.log('  Discovering P1999 Q-item → status mapping...');
+  const discoveryQuery = `SELECT DISTINCT ?vitality ?vitalityLabel WHERE {
+  ?lang wdt:P1999 ?vitality.
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+}`;
+  const rows = await sparqlQuery<Binding>(discoveryQuery);
+  const qidMap = new Map<string, string>(); // QID → our enum value
+  for (const b of rows) {
+    const qid = b.vitality?.value.split('/').pop() ?? '';
+    const label = (b.vitalityLabel?.value ?? '').toLowerCase().trim();
+    const mapped = UNESCO_LABEL_MAP[label];
+    console.log(`    ${qid}: "${b.vitalityLabel?.value}" → ${mapped ?? 'UNMAPPED'}`);
+    if (qid && mapped) qidMap.set(qid, mapped);
+  }
+  console.log(`  ${qidMap.size} P1999 values mapped\n`);
+  return qidMap;
+}
+
+async function fetchUNESCOVitality(glottocodes: string[], qidMap: Map<string, string>): Promise<Map<string, string>> {
+  // Fetch by QID directly — no label service needed in the batched query
   const rows = await batchedQuery<Binding>(
     glottocodes,
-    (vals) => `SELECT ?glottolog ?vitalityLabel WHERE {
+    (vals) => `SELECT ?glottolog ?vitality WHERE {
   VALUES ?glottolog { ${vals} }
   ?lang wdt:P1394 ?glottolog.
   ?lang wdt:P1999 ?vitality.
-  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
 }`,
     'UNESCO',
   );
@@ -200,9 +227,8 @@ async function fetchUNESCOVitality(glottocodes: string[]): Promise<Map<string, s
   for (const b of rows) {
     const code = b.glottolog?.value;
     if (!code || map.has(code)) continue;
-    if (b.vitalityLabel?.type !== 'literal') continue;
-    const label = b.vitalityLabel.value.toLowerCase().trim();
-    const mapped = UNESCO_LABEL_MAP[label];
+    const qid = b.vitality?.value.split('/').pop() ?? '';
+    const mapped = qidMap.get(qid);
     if (mapped) map.set(code, mapped);
   }
   return map;
@@ -341,7 +367,9 @@ async function main() {
 
   // ── Phase 4: UNESCO vitality ──────────────────────────────────────────────
   console.log(`Phase 4: UNESCO vitality (${Math.ceil(glottocodes.length / SPARQL_BATCH)} batches)...`);
-  const vitalityMap = await fetchUNESCOVitality(glottocodes);
+  const vitalityQIDMap = await buildVitalityQIDMap();
+  await sleep(BATCH_DELAY_MS);
+  const vitalityMap = await fetchUNESCOVitality(glottocodes, vitalityQIDMap);
   console.log(`  ${vitalityMap.size} languages with UNESCO vitality data\n`);
 
   await supabase.from('vitality_assessments').delete().eq('source_id', SOURCE_ID);
