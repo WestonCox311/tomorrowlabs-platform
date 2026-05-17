@@ -30,6 +30,7 @@ async function fetchWikidataPage(
     SELECT ?glottolog ?nativeLabel WHERE {
       ?lang wdt:P1394 ?glottolog.
       ?lang wdt:P1705 ?nativeLabel.
+      FILTER(isLiteral(?nativeLabel))
     }
     LIMIT ${PAGE_SIZE}
     OFFSET ${offset}
@@ -48,8 +49,8 @@ async function fetchWikidataPage(
   }
 
   type WDBinding = {
-    glottolog: { value: string };
-    nativeLabel: { value: string };
+    glottolog: { type: string; value: string };
+    nativeLabel: { type: string; value: string };
   };
   const json = (await res.json()) as {
     results: { bindings: WDBinding[] };
@@ -58,6 +59,8 @@ async function fetchWikidataPage(
   const map = new Map<string, string>();
   for (const b of json.results.bindings) {
     const code = b.glottolog.value;
+    // Defense-in-depth: skip anything that isn't a plain string literal
+    if (b.nativeLabel.type !== 'literal') continue;
     // Some languages have multiple P1705 values — take the first one we see
     if (!map.has(code)) {
       map.set(code, b.nativeLabel.value);
@@ -100,15 +103,25 @@ async function main() {
     process.exit(1);
   }
 
-  // Fetch all DB languages that need endonyms
+  // Fetch all DB languages that need endonyms (paginate — PostgREST caps at 1,000 rows)
   console.log('\nFetching languages from Supabase where endonym is NULL...');
-  const { data: languages, error: fetchErr } = await supabase
-    .from('languages')
-    .select('id, glottocode, english_name')
-    .is('endonym', null);
+  const DB_PAGE = 1000;
+  const languages: Array<{ id: string; glottocode: string; english_name: string }> = [];
 
-  if (fetchErr) throw new Error(`Supabase fetch error: ${fetchErr.message}`);
-  if (!languages?.length) {
+  for (let from = 0; ; from += DB_PAGE) {
+    const { data, error } = await supabase
+      .from('languages')
+      .select('id, glottocode, english_name')
+      .is('endonym', null)
+      .range(from, from + DB_PAGE - 1);
+
+    if (error) throw new Error(`Supabase fetch error: ${error.message}`);
+    if (!data?.length) break;
+    languages.push(...data);
+    if (data.length < DB_PAGE) break;
+  }
+
+  if (!languages.length) {
     console.log('All languages already have endonyms — nothing to do.');
     process.exit(0);
   }
