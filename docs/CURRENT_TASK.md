@@ -6,11 +6,28 @@
 
 ## In progress
 
-Nothing actively in flight. Data accuracy pass just completed.
+UNESCO vitality seed running (`npm run seed:wikidata-vitality` from main repo — ~5 min).
+Expecting ~2,362 vitality_assessments rows from Wikidata P1999.
 
 ---
 
 ## Last completed
+
+**FilterBar system + docs/sources pages + sidebar + seed scripts — 2026-05-17**
+
+| Shipped | Details |
+|---------|---------|
+| FilterBar component | `src/components/filter-bar.tsx` — client component, auto-apply selects, filter chips, clear all |
+| Languages filters | + ethnologue_status (6 values), is_constructed (true/false) |
+| Tech Readiness filters | + language name search, omnilingual (yes only), IPA path (yes only) |
+| Places, Organizations | Replaced inline form with FilterBar |
+| Communities | + self_identified filter |
+| Documentation page | `/admin/documentation` — glossary (30+ terms), table reference by layer |
+| Sources page | `/admin/sources` — grouped by type, reliability badges |
+| Sidebar | "Spine Entities" → "Data"; Products section (Babagigi); Documentation + Sources utility links |
+| Seed scripts | seed-wikidata-enrichment, seed-glottolog-endangerment, seed-wals, seed-common-voice, seed-iso639 |
+| UNESCO vitality fix | Wikidata labels use "1 safe" prefix format — fixed label map |
+| seed-wikidata-vitality | Standalone Phase 4 script for future re-runs |
 
 **Phase 1–3 + Phase 4 (partial) — fully complete as of 2026-05-16**
 
