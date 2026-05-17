@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import Link from 'next/link';
+import { ClickableRow } from '@/components/clickable-row';
 import type { Database } from '@/lib/database.types';
 
 type Organization = Database['public']['Tables']['organizations']['Row'];
@@ -126,11 +127,9 @@ export default async function OrganizationsPage({ searchParams }: Props) {
           <tbody className="divide-y divide-border">
             {organizations && organizations.length > 0 ? (
               organizations.map((org) => (
-                <tr key={org.id} className="hover:bg-muted/30 transition-colors">
+                <ClickableRow key={org.id} href={`/admin/organizations/${org.id}`}>
                   <td className="px-4 py-3">
-                    <Link href={`/admin/organizations/${org.id}`} className="font-medium text-ink hover:text-moss">
-                      {org.display_name ?? org.legal_name}
-                    </Link>
+                    <span className="font-medium text-ink">{org.display_name ?? org.legal_name}</span>
                     {org.display_name && org.display_name !== org.legal_name && (
                       <p className="text-xs text-muted-foreground mt-0.5">{org.legal_name}</p>
                     )}
@@ -149,7 +148,7 @@ export default async function OrganizationsPage({ searchParams }: Props) {
                       <span className="text-xs text-moss">Active</span>
                     )}
                   </td>
-                </tr>
+                </ClickableRow>
               ))
             ) : (
               <tr>

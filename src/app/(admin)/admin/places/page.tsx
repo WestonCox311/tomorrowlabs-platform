@@ -1,5 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import Link from 'next/link';
+import { InfoTooltip } from '@/components/info-tooltip';
+import { ClickableRow } from '@/components/clickable-row';
 import type { Database } from '@/lib/database.types';
 
 type Place = Database['public']['Tables']['places']['Row'];
@@ -109,19 +111,32 @@ export default async function PlacesPage({ searchParams }: Props) {
             <tr>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Endonym</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Granularity</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">ISO α2</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Status</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                <span className="flex items-center gap-0.5">
+                  Granularity
+                  <InfoTooltip text="How specific this place is in the geographic hierarchy: country, state-province, metro-area, indigenous-territory, community-designated, etc." />
+                </span>
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                <span className="flex items-center gap-0.5">
+                  ISO α2
+                  <InfoTooltip text="ISO 3166-1 alpha-2 two-letter country code (e.g. 'US', 'KH' for Cambodia). Only applies to countries." />
+                </span>
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                <span className="flex items-center gap-0.5">
+                  Status
+                  <InfoTooltip text="Active = currently exists; Historical = no longer exists as named; Disputed = political status contested; Depopulated = place exists but is uninhabited." />
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {places && places.length > 0 ? (
               places.map((place) => (
-                <tr key={place.id} className="hover:bg-muted/30 transition-colors">
+                <ClickableRow key={place.id} href={`/admin/places/${place.id}`}>
                   <td className="px-4 py-3">
-                    <Link href={`/admin/places/${place.id}`} className="font-medium text-ink hover:text-moss">
-                      {place.english_name}
-                    </Link>
+                    <span className="font-medium text-ink">{place.english_name}</span>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{place.endonym ?? '—'}</td>
                   <td className="px-4 py-3">
@@ -139,7 +154,7 @@ export default async function PlacesPage({ searchParams }: Props) {
                       <span className="text-muted-foreground">{place.status ?? '—'}</span>
                     )}
                   </td>
-                </tr>
+                </ClickableRow>
               ))
             ) : (
               <tr>

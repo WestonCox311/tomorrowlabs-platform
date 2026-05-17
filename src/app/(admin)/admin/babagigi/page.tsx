@@ -1,11 +1,24 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import Link from 'next/link';
+import { InfoTooltip } from '@/components/info-tooltip';
 
 const WAVES = [
-  { key: 'wave-1', label: 'Wave 1', subtitle: 'Commercial foundation' },
-  { key: 'wave-2', label: 'Wave 2', subtitle: 'Demand expansion' },
-  { key: 'wave-3', label: 'Wave 3', subtitle: 'Aging heritage' },
-  { key: 'wave-4', label: 'Wave 4', subtitle: 'Mission track' },
+  {
+    key: 'wave-1', label: 'Wave 1', subtitle: 'Commercial foundation',
+    tooltip: '8 high-demand diaspora languages with strong US market and available voice technology. Babagigi\'s initial revenue base — commercial success here funds the mission waves.',
+  },
+  {
+    key: 'wave-2', label: 'Wave 2', subtitle: 'Demand expansion',
+    tooltip: '5 languages with demonstrated diaspora demand and developing voice technology support. Expands the commercial base while deepening community reach.',
+  },
+  {
+    key: 'wave-3', label: 'Wave 3', subtitle: 'Aging heritage',
+    tooltip: '7 languages where grandparent-generation speakers are the primary audience. Cultural preservation urgency is high — these are communities where the grandparent generation may be the last fluent speakers.',
+  },
+  {
+    key: 'wave-4', label: 'Wave 4', subtitle: 'Mission track',
+    tooltip: '7 languages serving communities with active field partnerships. Revenue is secondary to cultural survival impact. Requires deeper community co-design before full launch.',
+  },
 ];
 
 const STATUS_COLORS: Record<string, string> = {
@@ -114,13 +127,14 @@ export default async function BabagigPipelinePage() {
 
       {/* Wave sections */}
       <div className="space-y-8">
-        {WAVES.map(({ key, label, subtitle }) => {
+        {WAVES.map(({ key, label, subtitle, tooltip }) => {
           const entries = byWave[key] ?? [];
           return (
             <section key={key}>
-              <div className="flex items-baseline gap-2 mb-3">
+              <div className="flex items-center gap-2 mb-3">
                 <h2 className="text-sm font-semibold text-ink">{label}</h2>
                 <span className="text-sm text-muted-foreground">— {subtitle}</span>
+                <InfoTooltip text={tooltip} />
                 <span className="ml-auto text-xs text-muted-foreground">{entries.length} languages</span>
               </div>
 
@@ -134,9 +148,24 @@ export default async function BabagigPipelinePage() {
                     <thead>
                       <tr className="border-b border-border bg-muted/30">
                         <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Language</th>
-                        <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Ethnologue</th>
-                        <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Status</th>
-                        <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">Communities</th>
+                        <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">
+                          <span className="flex items-center gap-0.5">
+                            Ethnologue
+                            <InfoTooltip text="EGIDS classification: International = used globally; National = official in a country; Vigorous = all generations actively use it; Threatened = not being passed to children at the rate needed for long-term survival." side="top" />
+                          </span>
+                        </th>
+                        <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">
+                          <span className="flex items-center gap-0.5">
+                            Status
+                            <InfoTooltip text="Pipeline status for this language in Babagigi: planned = queued for development; in-development = actively being built; live = available to users; deferred = postponed." side="top" />
+                          </span>
+                        </th>
+                        <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">
+                          <span className="flex items-center gap-0.5">
+                            Communities
+                            <InfoTooltip text="Number of community records in the database that list this as a primary language. Hover a count to see community names." side="top" />
+                          </span>
+                        </th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">

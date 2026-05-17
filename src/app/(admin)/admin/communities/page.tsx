@@ -1,5 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import Link from 'next/link';
+import { InfoTooltip } from '@/components/info-tooltip';
+import { ClickableRow } from '@/components/clickable-row';
 import type { Database } from '@/lib/database.types';
 
 type Community = Database['public']['Tables']['communities']['Row'];
@@ -91,18 +93,26 @@ export default async function CommunitiesPage({ searchParams }: Props) {
             <tr>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Name</th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">Type</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Est. population</th>
-              <th className="text-left px-4 py-3 font-medium text-muted-foreground">Self-identified</th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                <span className="flex items-center gap-0.5">
+                  Est. population
+                  <InfoTooltip text="Estimated global population of this community. The confidence level in parentheses indicates how reliable the estimate is: high = census-grade data; medium = reliable secondary sources; low = extrapolated; estimated = best guess from indirect evidence." />
+                </span>
+              </th>
+              <th className="text-left px-4 py-3 font-medium text-muted-foreground">
+                <span className="flex items-center gap-0.5">
+                  Self-identified
+                  <InfoTooltip text="Whether this community self-identifies as a community. TomorrowLabs only records communities that have defined themselves — we don't impose groupings onto people." />
+                </span>
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {communities && communities.length > 0 ? (
               communities.map((community) => (
-                <tr key={community.id} className="hover:bg-muted/30 transition-colors">
+                <ClickableRow key={community.id} href={`/admin/communities/${community.id}`}>
                   <td className="px-4 py-3">
-                    <Link href={`/admin/communities/${community.id}`} className="font-medium text-ink hover:text-moss">
-                      {community.english_name}
-                    </Link>
+                    <span className="font-medium text-ink">{community.english_name}</span>
                     {community.endonym && (
                       <p className="text-xs text-muted-foreground mt-0.5">{community.endonym}</p>
                     )}
@@ -129,7 +139,7 @@ export default async function CommunitiesPage({ searchParams }: Props) {
                   <td className="px-4 py-3 text-muted-foreground">
                     {community.is_self_identified_community === false ? 'No' : 'Yes'}
                   </td>
-                </tr>
+                </ClickableRow>
               ))
             ) : (
               <tr>

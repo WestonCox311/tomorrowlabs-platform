@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { DeleteButton } from '@/components/delete-button';
 import { deleteLanguage } from '@/app/actions/languages';
+import { InfoTooltip } from '@/components/info-tooltip';
+import { CopyButton } from '@/components/copy-button';
 import type { Database } from '@/lib/database.types';
 
 type Language = Database['public']['Tables']['languages']['Row'];
@@ -24,6 +26,20 @@ const STATUS_COLORS: Record<string, string> = {
   planned: 'bg-amber-100 text-amber-800',
   deferred: 'bg-muted text-muted-foreground',
   sunset: 'bg-red-100 text-red-800',
+};
+
+const FIELD_TOOLTIPS: Record<string, string> = {
+  'Glottocode': "Glottolog's unique identifier for this language. The primary key for cross-database joins. Example: 'stan1288' for Spanish.",
+  'ISO 639-3': "Three-letter code from the ISO 639-3 standard (SIL International). More comprehensive than ISO 639-1. Not all languages have one.",
+  'ISO 639-1': "Two-letter code from the ISO 639-1 standard. Only ~180 major world languages have these.",
+  'Granularity': "How specific this record is: 'language' = a distinct L1 language; 'dialect' = a regional variant; 'variety' = a functional variant (e.g. formal Arabic); 'macrolanguage' = an umbrella for closely related languages.",
+  'Ethnologue status': "Ethnologue's EGIDS classification: International = used globally across many countries; National = official in at least one country; Vigorous = all generations use it actively; Threatened = children are not learning it at the rate needed for long-term survival.",
+  'Wikidata QID': "The Wikidata entity identifier (e.g. Q1321 for Spanish). Links this record to the broader linked-data ecosystem.",
+  'WALS code': "World Atlas of Language Structures code. WALS is a typological database mapping structural features across languages. Not all languages are in WALS.",
+  'Linguasphere code': "Dalby's Linguasphere Register — an alternative classification that organizes languages by acoustic and structural similarity rather than genealogy.",
+  'Glottolog validated': "Whether this record has been manually verified against Glottolog's current dataset. Auto-seeded records start as unvalidated.",
+  'Signed language': "Whether this is a signed (visual-gestural) language rather than a spoken one.",
+  'Constructed': "Whether this language was deliberately created (like Esperanto) rather than having emerged naturally in a community.",
 };
 
 export default async function LanguageDetailPage({ params }: Props) {
@@ -49,25 +65,26 @@ export default async function LanguageDetailPage({ params }: Props) {
 
   const deleteAction = deleteLanguage.bind(null, id);
 
-  const fields: [string, string | boolean | null][] = [
+  const ps = babagigi.data;
+  const communities = linkedCommunities.data ?? [];
+
+  type FieldValue = string | boolean | null;
+  const fields: [string, FieldValue, string?][] = [
     ['English name', lang.english_name],
     ['Endonym', lang.endonym],
-    ['Glottocode', lang.glottocode],
-    ['ISO 639-3', lang.iso_639_3],
-    ['ISO 639-1', lang.iso_639_1],
+    ['Glottocode', lang.glottocode, 'copy'],
+    ['ISO 639-3', lang.iso_639_3, 'copy'],
+    ['ISO 639-1', lang.iso_639_1, 'copy'],
     ['Granularity', lang.granularity],
     ['Ethnologue status', lang.ethnologue_status],
-    ['Wikidata QID', lang.wikidata_qid],
-    ['WALS code', lang.wals_code],
+    ['Wikidata QID', lang.wikidata_qid, 'copy'],
+    ['WALS code', lang.wals_code, 'copy'],
     ['Linguasphere code', lang.linguasphere_code],
     ['Signed language', lang.is_signed_language],
     ['Constructed', lang.is_constructed],
     ['Glottolog validated', lang.glottolog_validated],
     ['Notes', lang.notes],
   ];
-
-  const ps = babagigi.data;
-  const communities = linkedCommunities.data ?? [];
 
   return (
     <div className="p-8 max-w-3xl">
@@ -94,14 +111,19 @@ export default async function LanguageDetailPage({ params }: Props) {
       </div>
 
       <dl className="divide-y divide-border border border-border rounded-lg overflow-hidden">
-        {fields.map(([label, value]) => (
+        {fields.map(([label, value, hint]) => (
           <div key={label} className="flex px-4 py-3 text-sm">
-            <dt className="w-48 shrink-0 font-medium text-muted-foreground">{label}</dt>
+            <dt className="w-48 shrink-0 font-medium text-muted-foreground flex items-center">
+              {label}
+              {FIELD_TOOLTIPS[label] && <InfoTooltip text={FIELD_TOOLTIPS[label]} />}
+            </dt>
             <dd className="text-ink">
-              {value === null || value === undefined
+              {value === null || value === undefined || value === ''
                 ? <span className="text-muted-foreground">—</span>
                 : typeof value === 'boolean'
                 ? value ? 'Yes' : 'No'
+                : hint === 'copy' && typeof value === 'string'
+                ? <CopyButton value={value} label={label} />
                 : value}
             </dd>
           </div>
@@ -145,10 +167,7 @@ export default async function LanguageDetailPage({ params }: Props) {
           <ul className="divide-y divide-border">
             {communities.map((c) => (
               <li key={c.id} className="flex items-center justify-between px-4 py-2.5">
-                <Link
-                  href={`/admin/communities/${c.id}`}
-                  className="text-sm text-moss hover:underline"
-                >
+                <Link href={`/admin/communities/${c.id}`} className="text-sm text-moss hover:underline">
                   {c.english_name}
                 </Link>
                 <div className="flex items-center gap-2">
