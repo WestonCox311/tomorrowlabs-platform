@@ -73,6 +73,7 @@ async function main() {
     glottocode: string;
     iso_639_3: string | null;
     granularity: 'language';
+    is_signed_language: boolean;
   };
 
   const records: LanguageRow[] = [];
@@ -93,12 +94,17 @@ async function main() {
 
     const glottocode = cols[idx.id] ?? '';
     const iso = cols[idx.iso]?.trim() || null;
+    const name = cols[idx.name] ?? glottocode;
+    const nameLower = name.toLowerCase();
+    const isSignedLanguage =
+      nameLower.includes('sign language') || nameLower.includes('signed language');
 
     records.push({
-      english_name: cols[idx.name] ?? glottocode,
+      english_name: name,
       glottocode,
       iso_639_3: iso,
       granularity: 'language',
+      is_signed_language: isSignedLanguage,
     });
   }
 
