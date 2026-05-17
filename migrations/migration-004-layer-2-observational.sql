@@ -672,6 +672,21 @@ INSERT INTO observation_registry (table_name, observed_entity_type, observation_
 -- =====================================================================
 -- Real entries demonstrating the tables work, not exhaustive
 
+-- Sources referenced in this migration's seed data (were in original migration-000)
+INSERT INTO sources (id, name, type, url, accessed_date, reliability_rating, notes) VALUES
+  ('11111111-1111-1111-1111-111111111103',
+   'Meta AI Research — Omnilingual ASR paper (arXiv 2511.09690)',
+   'academic',
+   'https://arxiv.org/abs/2511.09690',
+   '2026-05-16', 'high',
+   'Omnilingual ASR: Open-Source Multilingual Speech Recognition for 1600+ Languages. November 2025.'),
+  ('11111111-1111-1111-1111-111111111107',
+   'US Department of State / UNHCR — Refugee Admissions Historical Data',
+   'academic',
+   'https://www.unhcr.org/refugee-statistics/',
+   '2026-05-16', 'high',
+   'Historical refugee admissions and resettlement flow data. Used for migration flow seed entries.');
+
 -- Migration flow: Cambodian refugee resettlement to US
 INSERT INTO migration_flows (
   origin_place_id, destination_place_id, observation_year,

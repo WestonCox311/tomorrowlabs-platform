@@ -669,7 +669,7 @@ CREATE TABLE team_members (
   pronouns text,
   
   -- Role
-  current_role text NOT NULL,
+  role text NOT NULL,
   team text,                             -- 'product', 'partnerships', 'research', 'operations'
   reports_to text,
   

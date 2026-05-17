@@ -587,7 +587,7 @@ SELECT
       AND (last_audit_date IS NULL OR last_audit_date < CURRENT_DATE - INTERVAL '13 months')
   ) AS benefit_sharing_audits_overdue,
   -- Decision quality
-  (SELECT COUNT(*) FROM decision_log WHERE decided_at > CURRENT_DATE - INTERVAL '12 months') AS decisions_logged_last_12_months,
+  (SELECT COUNT(*) FROM decision_log WHERE decision_date > CURRENT_DATE - INTERVAL '12 months') AS decisions_logged_last_12_months,
   (SELECT COUNT(*) FROM decision_outcomes WHERE assessed_at > CURRENT_DATE - INTERVAL '12 months') AS outcomes_assessed_last_12_months;
 
 
@@ -597,11 +597,11 @@ CREATE OR REPLACE VIEW language_strategic_scorecard AS
 SELECT
   l.english_name AS language,
   l.glottocode,
-  l.status,
+  (SELECT cv.unesco_vitality FROM current_vitality cv WHERE cv.glottocode = l.glottocode LIMIT 1) AS vitality_status,
   -- Demand signal (US-focused)
   COALESCE((
-    SELECT MAX(total_speakers) 
-    FROM speaker_populations sp 
+    SELECT MAX(l1_speakers)
+    FROM speaker_populations sp
     WHERE sp.language_id = l.id AND sp.country_code = 'US'
   ), 0) AS us_speakers,
   COALESCE((
@@ -768,21 +768,21 @@ ORDER BY dp.next_review_due ASC;
 -- Are we actually learning from our decisions?
 CREATE OR REPLACE VIEW decision_learning_health AS
 SELECT
-  EXTRACT(YEAR FROM dl.decided_at) AS decision_year,
-  EXTRACT(QUARTER FROM dl.decided_at) AS decision_quarter,
+  EXTRACT(YEAR FROM dl.decision_date) AS decision_year,
+  EXTRACT(QUARTER FROM dl.decision_date) AS decision_quarter,
   COUNT(dl.id) AS decisions_made,
-  COUNT(do.id) AS decisions_assessed,
-  CASE 
-    WHEN COUNT(dl.id) > 0 THEN ROUND((COUNT(do.id)::numeric / COUNT(dl.id) * 100), 1)
-    ELSE 0 
+  COUNT(dout.id) AS decisions_assessed,
+  CASE
+    WHEN COUNT(dl.id) > 0 THEN ROUND((COUNT(dout.id)::numeric / COUNT(dl.id) * 100), 1)
+    ELSE 0
   END AS pct_with_outcome_assessment,
-  COUNT(do.id) FILTER (WHERE do.outcome_status = 'going-well') AS going_well,
-  COUNT(do.id) FILTER (WHERE do.outcome_status = 'going-poorly') AS going_poorly,
-  COUNT(do.id) FILTER (WHERE do.outcome_status = 'reversed') AS reversed_decisions
+  COUNT(dout.id) FILTER (WHERE dout.outcome_status = 'going-well') AS going_well,
+  COUNT(dout.id) FILTER (WHERE dout.outcome_status = 'going-poorly') AS going_poorly,
+  COUNT(dout.id) FILTER (WHERE dout.outcome_status = 'reversed') AS reversed_decisions
 FROM decision_log dl
-LEFT JOIN decision_outcomes do ON do.decision_log_id = dl.id
-WHERE dl.decided_at >= CURRENT_DATE - INTERVAL '24 months'
-GROUP BY EXTRACT(YEAR FROM dl.decided_at), EXTRACT(QUARTER FROM dl.decided_at)
+LEFT JOIN decision_outcomes dout ON dout.decision_log_id = dl.id
+WHERE dl.decision_date >= CURRENT_DATE - INTERVAL '24 months'
+GROUP BY EXTRACT(YEAR FROM dl.decision_date), EXTRACT(QUARTER FROM dl.decision_date)
 ORDER BY decision_year DESC, decision_quarter DESC;
 
 
