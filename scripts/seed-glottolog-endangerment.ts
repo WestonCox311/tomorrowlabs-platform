@@ -29,6 +29,8 @@ const PARAMS_CSV_URL =
   'https://raw.githubusercontent.com/glottolog/glottolog-cldf/master/cldf/parameters.csv';
 const VALUES_CSV_URL =
   'https://raw.githubusercontent.com/glottolog/glottolog-cldf/master/cldf/values.csv';
+const CODES_CSV_URL =
+  'https://raw.githubusercontent.com/glottolog/glottolog-cldf/master/cldf/codes.csv';
 const SOURCE_ID = '11111111-0000-0000-0000-000000000005';
 const INSERT_BATCH = 500;
 
@@ -60,7 +62,8 @@ type AESMapping = {
   ethnologue: string | null; // our ethnologue_status enum value
 };
 
-const AES_MAPPINGS: Record<string, AESMapping> = {
+// Keyed by the text label (lowercased) as found in codes.csv Name column
+const AES_MAPPINGS_BY_LABEL: Record<string, AESMapping> = {
   'not endangered': { egids: '6a-vigorous', unesco: 'safe', ethnologue: null },
   'threatened':     { egids: '6b-threatened', unesco: 'definitely-endangered', ethnologue: 'Threatened' },
   'shifting':       { egids: '7-shifting', unesco: 'severely-endangered', ethnologue: 'Shifting' },
@@ -68,6 +71,39 @@ const AES_MAPPINGS: Record<string, AESMapping> = {
   'nearly extinct': { egids: '8b-nearly-extinct', unesco: 'critically-endangered', ethnologue: 'Moribund' },
   'extinct':        { egids: '10-extinct', unesco: 'extinct', ethnologue: null },
 };
+
+// Build numeric code → AESMapping from codes.csv (codes are "aes-1", "aes-2", etc.)
+async function buildAesMappings(codesText: string): Promise<Map<string, AESMapping>> {
+  const lines = codesText.split('\n');
+  const headers = parseCSVLine(lines[0] ?? '');
+  const idIdx = headers.indexOf('ID');
+  const paramIdx = headers.indexOf('Parameter_ID');
+  const nameIdx = headers.indexOf('Name');
+  if (idIdx === -1 || nameIdx === -1) {
+    throw new Error(`codes.csv missing ID or Name column. Headers: ${headers.join(', ')}`);
+  }
+
+  const map = new Map<string, AESMapping>();
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i]?.trim();
+    if (!line) continue;
+    const cols = parseCSVLine(line);
+    const id = cols[idIdx]?.trim() ?? '';
+    const paramId = paramIdx !== -1 ? cols[paramIdx]?.trim() ?? '' : '';
+    const name = (cols[nameIdx] ?? '').toLowerCase().trim();
+    // Only AES codes; ID format is "aes-1", "aes-2", etc.
+    if (paramIdx !== -1 && paramId !== 'aes') continue;
+    if (!id.startsWith('aes-')) continue;
+    const numericCode = id.replace('aes-', '');
+    const mapping = AES_MAPPINGS_BY_LABEL[name];
+    if (mapping) {
+      map.set(numericCode, mapping);
+    } else {
+      console.warn(`  Unknown AES label: "${name}" (code ${numericCode})`);
+    }
+  }
+  return map;
+}
 
 async function fetchCSV(url: string, label: string): Promise<string> {
   console.log(`Fetching ${label}...`);
@@ -110,6 +146,15 @@ async function main() {
   }, { onConflict: 'id' });
   if (srcErr) throw new Error(`Source upsert failed: ${srcErr.message}`);
 
+  // Load codes.csv to map numeric AES codes to our enum values
+  console.log('Building AES code → mapping table...');
+  const codesText = await fetchCSV(CODES_CSV_URL, 'codes.csv');
+  const aesMappings = await buildAesMappings(codesText);
+  if (aesMappings.size === 0) {
+    throw new Error('No AES code mappings found in codes.csv — check the file format');
+  }
+  console.log(`  ${aesMappings.size} AES codes resolved\n`);
+
   // Find the endangerment parameter ID
   const paramsText = await fetchCSV(PARAMS_CSV_URL, 'parameters.csv');
   const endangermentParamID = await findEndangermentParameterID(paramsText);
@@ -123,23 +168,40 @@ async function main() {
     langId: valueHeaders.indexOf('Language_ID'),
     paramId: valueHeaders.indexOf('Parameter_ID'),
     value: valueHeaders.indexOf('Value'),
+    codeId: valueHeaders.indexOf('Code_ID'), // CLDF code reference (e.g. "aes-not_endangered")
   };
 
-  if (vIdx.langId === -1 || vIdx.paramId === -1 || vIdx.value === -1) {
+  if (vIdx.langId === -1 || vIdx.paramId === -1) {
     throw new Error(`values.csv missing expected columns. Headers: ${valueHeaders.join(', ')}`);
   }
 
-  // glottocode → AES value text
+  // glottocode → AES code key (matches aesMappings keys)
   const endangermentMap = new Map<string, string>();
+  const aesValuesSeen = new Set<string>();
   for (let i = 1; i < valueLines.length; i++) {
     const line = valueLines[i]?.trim();
     if (!line) continue;
     const cols = parseCSVLine(line);
     const paramId = cols[vIdx.paramId]?.trim() ?? '';
     if (paramId !== endangermentParamID) continue;
-    const glottocode = cols[vIdx.langId]?.trim() ?? '';
-    const value = (cols[vIdx.value] ?? '').toLowerCase().trim();
-    if (glottocode && value) endangermentMap.set(glottocode, value);
+    const rawLangId = cols[vIdx.langId]?.trim() ?? '';
+    // Strip any CLDF table prefix (e.g. "LanguageTable/abaa1238" → "abaa1238")
+    const glottocode = rawLangId.includes('/') ? rawLangId.split('/').pop()! : rawLangId;
+
+    // Prefer Code_ID column (e.g. "aes-not_endangered") over Value (numeric)
+    let codeKey: string;
+    if (vIdx.codeId !== -1) {
+      const rawCodeId = cols[vIdx.codeId]?.trim() ?? '';
+      // Strip "aes-" prefix to get bare key matching aesMappings
+      codeKey = rawCodeId.startsWith('aes-') ? rawCodeId.slice(4) : rawCodeId.toLowerCase();
+    } else {
+      codeKey = (cols[vIdx.value] ?? '').toLowerCase().trim();
+    }
+
+    if (glottocode && codeKey) {
+      endangermentMap.set(glottocode, codeKey);
+      aesValuesSeen.add(codeKey);
+    }
   }
   console.log(`\nParsed ${endangermentMap.size} endangerment records\n`);
 
@@ -168,9 +230,10 @@ async function main() {
   const today = new Date().toISOString().split('T')[0];
 
   for (const lang of languages) {
-    const aesValue = endangermentMap.get(lang.glottocode);
-    if (!aesValue) continue;
-    const mapping = AES_MAPPINGS[aesValue];
+    if (!lang.glottocode) continue;
+    const aesCode = endangermentMap.get(lang.glottocode);
+    if (!aesCode) continue;
+    const mapping = aesMappings.get(aesCode);
     if (!mapping) continue;
     matchCount++;
 
@@ -181,7 +244,7 @@ async function main() {
       assessment_scope: 'global',
       source_id: SOURCE_ID,
       confidence: 'medium',
-      rationale: `Glottolog AES: "${aesValue}".`,
+      rationale: `Glottolog AES code ${aesCode} (${mapping.egids ?? 'unknown'}).`,
     };
     if (mapping.egids) vitRow.egids_level = mapping.egids;
     if (mapping.unesco) vitRow.unesco_vitality = mapping.unesco;
