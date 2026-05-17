@@ -11,6 +11,7 @@
     "seed:glottolog": "tsx scripts/seed-glottolog.ts",
     "seed:geonames": "tsx scripts/seed-geonames.ts",
     "seed:endonyms": "tsx scripts/seed-endonyms.ts",
+    "seed:tech-readiness": "tsx scripts/seed-tech-readiness.ts",
     "seed:all": "npm run seed:glottolog && npm run seed:geonames && npm run seed:endonyms",
     "types:generate": "supabase gen types typescript --project-id mufemokeeftjklqemqyc > src/lib/database.types.ts"
   },
