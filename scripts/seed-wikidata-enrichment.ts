@@ -22,7 +22,8 @@ import { supabase } from './lib/supabase';
 
 const SPARQL_ENDPOINT = 'https://query.wikidata.org/sparql';
 const PAGE_SIZE = 3000;
-const PAGE_DELAY_MS = 2500;
+const PAGE_DELAY_MS = 8000;  // 8s between pages — Wikidata rate-limits aggressively
+const MAX_RETRIES = 5;
 const SOURCE_ID = '11111111-0000-0000-0000-000000000002';
 const INSERT_BATCH = 500;
 const UPDATE_BATCH = 50;
@@ -36,15 +37,32 @@ type Binding = Record<string, { type: string; value: string }>;
 async function sparqlPage<T extends Binding>(query: string, offset: number): Promise<T[]> {
   const paged = `${query}\nLIMIT ${PAGE_SIZE}\nOFFSET ${offset}`;
   const url = `${SPARQL_ENDPOINT}?query=${encodeURIComponent(paged)}&format=json`;
-  const res = await fetch(url, {
-    headers: {
-      Accept: 'application/sparql-results+json',
-      'User-Agent': 'TomorrowLabs-seed/1.0 (https://tomorrowlabs.org)',
-    },
-  });
-  if (!res.ok) throw new Error(`Wikidata HTTP ${res.status}: ${res.statusText}`);
-  const json = (await res.json()) as { results: { bindings: T[] } };
-  return json.results.bindings;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'application/sparql-results+json',
+        'User-Agent': 'TomorrowLabs-seed/1.0 (https://tomorrowlabs.org)',
+      },
+    });
+
+    if (res.ok) {
+      const json = (await res.json()) as { results: { bindings: T[] } };
+      return json.results.bindings;
+    }
+
+    if (res.status === 429 || res.status === 503) {
+      const retryAfter = res.headers.get('Retry-After');
+      const waitMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : Math.min(15000 * attempt, 120000);
+      console.warn(`\n  Rate limited (HTTP ${res.status}). Waiting ${waitMs / 1000}s before retry ${attempt}/${MAX_RETRIES}...`);
+      await sleep(waitMs);
+      continue;
+    }
+
+    throw new Error(`Wikidata HTTP ${res.status}: ${res.statusText}`);
+  }
+
+  throw new Error(`Wikidata SPARQL failed after ${MAX_RETRIES} retries`);
 }
 
 async function fetchAll<T extends Binding>(query: string, label: string): Promise<T[]> {
