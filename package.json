@@ -1,0 +1,50 @@
+{
+  "name": "tomorrowlabs-platform",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "seed:glottolog": "tsx scripts/seed-glottolog.ts",
+    "seed:geonames": "tsx scripts/seed-geonames.ts",
+    "seed:endonyms": "tsx scripts/seed-endonyms.ts",
+    "seed:tech-readiness": "tsx scripts/seed-tech-readiness.ts",
+    "seed:wikidata": "tsx scripts/seed-wikidata-enrichment.ts",
+    "seed:wals": "tsx scripts/seed-wals.ts",
+    "seed:common-voice": "tsx scripts/seed-common-voice.ts",
+    "seed:glottolog-endangerment": "tsx scripts/seed-glottolog-endangerment.ts",
+    "seed:iso639": "tsx scripts/seed-iso639.ts",
+    "seed:all": "npm run seed:glottolog && npm run seed:geonames && npm run seed:endonyms",
+    "types:generate": "supabase gen types typescript --project-id mufemokeeftjklqemqyc > src/lib/database.types.ts"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.4.1",
+    "@radix-ui/react-tooltip": "^1.2.8",
+    "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.49.4",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.511.0",
+    "next": "^15.3.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "shadcn": "^4.7.0",
+    "tailwind-merge": "^3.6.0",
+    "tw-animate-css": "^1.4.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.6",
+    "@types/node": "^22.15.18",
+    "@types/react": "^19.1.4",
+    "@types/react-dom": "^19.1.2",
+    "@types/ws": "^8.18.1",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^4.1.6",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "ws": "^8.20.1"
+  }
+}
