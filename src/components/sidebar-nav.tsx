@@ -9,6 +9,7 @@ const navItems = [
   { href: '/admin/organizations', label: 'Organizations' },
   { href: '/admin/communities', label: 'Communities' },
   { href: '/admin/babagigi', label: 'Babagigi' },
+  { href: '/admin/tech-readiness', label: 'Tech Readiness' },
 ];
 
 export function SidebarNav() {

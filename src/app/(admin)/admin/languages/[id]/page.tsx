@@ -46,7 +46,7 @@ export default async function LanguageDetailPage({ params }: Props) {
   const { id } = await params;
   const supabase = createClient();
 
-  const [langResult, babagigi, linkedCommunities] = await Promise.all([
+  const [langResult, babagigi, linkedCommunities, techResult] = await Promise.all([
     supabase.from('languages').select('*').eq('id', id).single(),
     supabase
       .from('product_status')
@@ -58,6 +58,11 @@ export default async function LanguageDetailPage({ params }: Props) {
       .from('communities')
       .select('id, english_name, community_type, estimated_population_confidence')
       .contains('primary_language_ids', [id]),
+    supabase
+      .from('tech_readiness')
+      .select('stt_quality_tier, tts_quality_tier, omnilingual_supported, omnilingual_cer, common_voice_hours_validated, ipa_pipeline_viable, notable_gaps, assessed_at')
+      .eq('language_id', id)
+      .maybeSingle(),
   ]);
 
   if (!langResult.data) notFound();
@@ -67,6 +72,14 @@ export default async function LanguageDetailPage({ params }: Props) {
 
   const ps = babagigi.data;
   const communities = linkedCommunities.data ?? [];
+  const tr = techResult.data;
+
+  const TIER_COLORS: Record<string, string> = {
+    production: 'bg-green-100 text-green-800',
+    usable: 'bg-blue-100 text-blue-800',
+    experimental: 'bg-amber-100 text-amber-800',
+    none: 'bg-muted text-muted-foreground',
+  };
 
   type FieldValue = string | boolean | null;
   const fields: [string, FieldValue, string?][] = [
@@ -183,6 +196,62 @@ export default async function LanguageDetailPage({ params }: Props) {
           </ul>
         </section>
       )}
+
+      {/* Tech readiness section */}
+      <section className="mt-4 border border-border rounded-lg overflow-hidden">
+        <div className="px-4 py-2 bg-muted/30 border-b border-border flex items-center justify-between">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Tech Readiness</h2>
+          <Link
+            href={`/admin/tech-readiness/${id}/edit`}
+            className="text-xs text-moss hover:underline"
+          >
+            {tr ? 'Edit →' : 'Add →'}
+          </Link>
+        </div>
+        {tr ? (
+          <div className="px-4 py-3 flex flex-wrap gap-x-6 gap-y-2 text-sm">
+            <div>
+              <span className="text-xs text-muted-foreground mr-1">STT</span>
+              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${TIER_COLORS[tr.stt_quality_tier ?? 'none'] ?? ''}`}>
+                {tr.stt_quality_tier}
+              </span>
+            </div>
+            <div>
+              <span className="text-xs text-muted-foreground mr-1">TTS</span>
+              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${TIER_COLORS[tr.tts_quality_tier ?? 'none'] ?? ''}`}>
+                {tr.tts_quality_tier}
+              </span>
+            </div>
+            {tr.omnilingual_supported && (
+              <div className="text-xs text-green-700 font-medium">
+                Omnilingual ✓{tr.omnilingual_cer != null ? ` (${tr.omnilingual_cer}% CER)` : ''}
+              </div>
+            )}
+            {tr.common_voice_hours_validated != null && tr.common_voice_hours_validated > 0 && (
+              <div className="text-xs text-muted-foreground">
+                CV: {tr.common_voice_hours_validated.toLocaleString()}h
+              </div>
+            )}
+            {tr.ipa_pipeline_viable && (
+              <div className="text-xs text-blue-700 font-medium">IPA path ✓</div>
+            )}
+            {tr.assessed_at && (
+              <div className="text-xs text-muted-foreground font-mono ml-auto">
+                Assessed {tr.assessed_at}
+              </div>
+            )}
+            {tr.notable_gaps && (
+              <p className="w-full text-xs text-muted-foreground border-t border-border pt-2 mt-1">
+                {tr.notable_gaps}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="px-4 py-3 text-sm text-muted-foreground italic">
+            No tech readiness data recorded.
+          </div>
+        )}
+      </section>
 
       <p className="mt-6 text-xs text-muted-foreground">
         ID: <span className="font-mono">{lang.id}</span>

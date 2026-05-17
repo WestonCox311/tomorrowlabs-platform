@@ -21,6 +21,13 @@ const WAVES = [
   },
 ];
 
+const TIER_COLORS: Record<string, string> = {
+  production: 'bg-green-100 text-green-800',
+  usable: 'bg-blue-100 text-blue-800',
+  experimental: 'bg-amber-100 text-amber-800',
+  none: 'bg-muted text-muted-foreground',
+};
+
 const STATUS_COLORS: Record<string, string> = {
   live: 'bg-green-100 text-green-800',
   'in-development': 'bg-blue-100 text-blue-800',
@@ -41,7 +48,7 @@ const ETHNOLOGUE_COLORS: Record<string, string> = {
 export default async function BabagigPipelinePage() {
   const supabase = createAdminClient();
 
-  const [pipelineResult, communitiesResult] = await Promise.all([
+  const [pipelineResult, communitiesResult, techResult] = await Promise.all([
     supabase
       .from('product_status')
       .select(`
@@ -64,10 +71,20 @@ export default async function BabagigPipelinePage() {
     supabase
       .from('communities')
       .select('id, english_name, primary_language_ids'),
+
+    supabase
+      .from('tech_readiness')
+      .select('language_id, stt_quality_tier, tts_quality_tier'),
   ]);
 
   const pipeline = pipelineResult.data ?? [];
   const allCommunities = communitiesResult.data ?? [];
+
+  // Map: language_id → tech readiness tiers
+  const techByLang: Record<string, { stt: string; tts: string }> = {};
+  for (const tr of techResult.data ?? []) {
+    techByLang[tr.language_id] = { stt: tr.stt_quality_tier, tts: tr.tts_quality_tier };
+  }
 
   // Build a map: language_id → community count
   const commCountByLang: Record<string, { count: number; names: string[] }> = {};
@@ -156,6 +173,18 @@ export default async function BabagigPipelinePage() {
                         </th>
                         <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">
                           <span className="flex items-center gap-0.5">
+                            STT
+                            <InfoTooltip text="Speech-to-text quality: production = commercial-grade; usable = functional with review; experimental = research-stage; none = no viable solution." side="top" />
+                          </span>
+                        </th>
+                        <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">
+                          <span className="flex items-center gap-0.5">
+                            TTS
+                            <InfoTooltip text="Text-to-speech quality. Same scale as STT." side="top" />
+                          </span>
+                        </th>
+                        <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">
+                          <span className="flex items-center gap-0.5">
                             Status
                             <InfoTooltip text="Pipeline status for this language in Babagigi: planned = queued for development; in-development = actively being built; live = available to users; deferred = postponed." side="top" />
                           </span>
@@ -195,6 +224,24 @@ export default async function BabagigPipelinePage() {
                                 </span>
                               ) : (
                                 <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              {techByLang[entry.language_id] ? (
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${TIER_COLORS[techByLang[entry.language_id].stt] ?? 'bg-muted text-muted-foreground'}`}>
+                                  {techByLang[entry.language_id].stt}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              {techByLang[entry.language_id] ? (
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${TIER_COLORS[techByLang[entry.language_id].tts] ?? 'bg-muted text-muted-foreground'}`}>
+                                  {techByLang[entry.language_id].tts}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground text-xs">—</span>
                               )}
                             </td>
                             <td className="px-4 py-2.5">
