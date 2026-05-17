@@ -6,8 +6,7 @@
 
 ## In progress
 
-UNESCO vitality seed running (`npm run seed:wikidata-vitality` from main repo — ~5 min).
-Expecting ~2,362 vitality_assessments rows from Wikidata P1999.
+Nothing actively in flight.
 
 ---
 
@@ -26,7 +25,7 @@ Expecting ~2,362 vitality_assessments rows from Wikidata P1999.
 | Sources page | `/admin/sources` — grouped by type, reliability badges |
 | Sidebar | "Spine Entities" → "Data"; Products section (Babagigi); Documentation + Sources utility links |
 | Seed scripts | seed-wikidata-enrichment, seed-glottolog-endangerment, seed-wals, seed-common-voice, seed-iso639 |
-| UNESCO vitality fix | Wikidata labels use "1 safe" prefix format — fixed label map |
+| UNESCO vitality fix | Wikidata labels use "1 safe" prefix format — fixed label map; 2,120 vitality_assessments rows now inserted |
 | seed-wikidata-vitality | Standalone Phase 4 script for future re-runs |
 
 **Phase 1–3 + Phase 4 (partial) — fully complete as of 2026-05-16**
