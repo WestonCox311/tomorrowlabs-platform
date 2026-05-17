@@ -57,9 +57,6 @@ async function main() {
   const idx = {
     id: headers.indexOf('ID'),
     name: headers.indexOf('Name'),
-    macroarea: headers.indexOf('Macroarea'),
-    lat: headers.indexOf('Latitude'),
-    lon: headers.indexOf('Longitude'),
     iso: headers.indexOf('ISO639P3code'),
     level: headers.indexOf('Level'),
   };
@@ -75,8 +72,6 @@ async function main() {
     english_name: string;
     glottocode: string;
     iso_639_3: string | null;
-    latitude: number | null;
-    longitude: number | null;
     granularity: 'language';
   };
 
@@ -98,15 +93,11 @@ async function main() {
 
     const glottocode = cols[idx.id] ?? '';
     const iso = cols[idx.iso]?.trim() || null;
-    const latStr = cols[idx.lat] ?? '';
-    const lonStr = cols[idx.lon] ?? '';
 
     records.push({
       english_name: cols[idx.name] ?? glottocode,
       glottocode,
       iso_639_3: iso,
-      latitude: latStr ? parseFloat(latStr) : null,
-      longitude: lonStr ? parseFloat(lonStr) : null,
       granularity: 'language',
     });
   }
