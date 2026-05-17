@@ -20,6 +20,12 @@ const navSections = [
       { href: '/admin/babagigi', label: 'Babagigi' },
     ],
   },
+  {
+    label: 'Decisions',
+    items: [
+      { href: '/admin/readiness', label: 'Readiness' },
+    ],
+  },
 ];
 
 const utilityLinks = [
