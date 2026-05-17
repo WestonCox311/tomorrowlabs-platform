@@ -1,11 +1,13 @@
 /**
  * seed-endonyms.ts
  *
- * Queries Wikidata SPARQL for native language labels (P1705) for the 33
- * Babagigi target languages. Only updates `endonym` where the current value
- * is NULL — never overwrites curated data.
+ * Queries Wikidata SPARQL for native language labels using the Glottolog
+ * code property (P1394). This covers all ~8,600 seeded languages — not just
+ * the 33 Babagigi targets. Coverage depends on what Wikidata has (typically
+ * 2,000–4,000 languages with native labels).
  *
- * Run after migration-008 so Hebrew, Punjabi, and Gujarati are in the table.
+ * Only updates `endonym` where the current DB value is NULL — never overwrites
+ * manually curated data (e.g., from migration-008).
  *
  * Source: https://query.wikidata.org/sparql (CC0)
  */
@@ -13,171 +15,152 @@
 import { supabase } from './lib/supabase';
 
 const SPARQL_ENDPOINT = 'https://query.wikidata.org/sparql';
+const PAGE_SIZE = 3000;
+const PAGE_DELAY_MS = 2000; // be polite to Wikidata's rate limits
+const UPDATE_BATCH_SIZE = 50;
 
-// Glottocodes for the 33 Babagigi target languages.
-// These must exist in the languages table before this script runs.
-const BABAGIGI_GLOTTOCODES = [
-  'stan1288', // Spanish
-  'mand1415', // Mandarin Chinese
-  'taga1270', // Tagalog
-  'viet1252', // Vietnamese
-  'kore1280', // Korean
-  'stan1318', // Arabic (MSA)
-  'stan1290', // French
-  'port1283', // Portuguese
-  'russ1263', // Russian
-  'hind1269', // Hindi
-  'cant1236', // Cantonese
-  'japa1256', // Japanese
-  'stan1295', // German
-  'ital1282', // Italian
-  'poli1260', // Polish
-  'mode1248', // Greek
-  'urdu1245', // Urdu
-  'cent1989', // Khmer
-  'kich1262', // K'iche'
-  'kaqc1270', // Kaqchikel
-  'east2455', // Nahuatl
-  'mixt1422', // Mixtec
-  'laoo1244', // Lao
-  'whit1273', // Hmong
-  'hebr1245', // Hebrew (added in migration-008)
-  'panj1256', // Punjabi (added in migration-008)
-  'guja1252', // Gujarati (added in migration-008)
-];
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-// Wikidata QIDs for each glottocode (for the SPARQL query)
-// Mapping: glottocode → Wikidata QID
-const GLOTTO_TO_QID: Record<string, string> = {
-  stan1288: 'Q1321',   // Spanish
-  mand1415: 'Q9192',   // Mandarin Chinese
-  taga1270: 'Q34057',  // Tagalog
-  viet1252: 'Q9199',   // Vietnamese
-  kore1280: 'Q9176',   // Korean
-  stan1318: 'Q13955',  // Arabic
-  stan1290: 'Q150',    // French
-  port1283: 'Q5146',   // Portuguese
-  russ1263: 'Q7737',   // Russian
-  hind1269: 'Q1568',   // Hindi
-  cant1236: 'Q9186',   // Cantonese
-  japa1256: 'Q5287',   // Japanese
-  stan1295: 'Q188',    // German
-  ital1282: 'Q652',    // Italian
-  poli1260: 'Q809',    // Polish
-  mode1248: 'Q36510',  // Modern Greek
-  urdu1245: 'Q1617',   // Urdu
-  cent1989: 'Q9205',   // Khmer
-  kich1262: 'Q36494',  // K'iche'
-  kaqc1270: 'Q35115',  // Kaqchikel
-  east2455: 'Q13300',  // Nahuatl
-  mixt1422: 'Q13352',  // Mixtec
-  laoo1244: 'Q9211',   // Lao
-  whit1273: 'Q35491',  // Hmong
-  hebr1245: 'Q9288',   // Hebrew
-  panj1256: 'Q58635',  // Punjabi
-  guja1252: 'Q5137',   // Gujarati
-};
-
-async function fetchWikidataEndonyms(
-  qids: string[]
-): Promise<Record<string, string>> {
-  const values = qids.map((q) => `wd:${q}`).join(' ');
+async function fetchWikidataPage(
+  offset: number
+): Promise<Map<string, string>> {
   const query = `
-    SELECT ?lang ?nativeLabel WHERE {
-      VALUES ?lang { ${values} }
+    SELECT ?glottolog ?nativeLabel WHERE {
+      ?lang wdt:P1394 ?glottolog.
       ?lang wdt:P1705 ?nativeLabel.
     }
+    LIMIT ${PAGE_SIZE}
+    OFFSET ${offset}
   `;
 
   const url = `${SPARQL_ENDPOINT}?query=${encodeURIComponent(query)}&format=json`;
   const res = await fetch(url, {
-    headers: { Accept: 'application/sparql-results+json' },
+    headers: {
+      Accept: 'application/sparql-results+json',
+      'User-Agent': 'TomorrowLabs-seed-endonyms/1.0 (https://tomorrowlabs.org)',
+    },
   });
-  if (!res.ok) throw new Error(`Wikidata SPARQL HTTP ${res.status}`);
 
+  if (!res.ok) {
+    throw new Error(`Wikidata SPARQL HTTP ${res.status}: ${res.statusText}`);
+  }
+
+  type WDBinding = {
+    glottolog: { value: string };
+    nativeLabel: { value: string };
+  };
   const json = (await res.json()) as {
-    results: { bindings: Array<{ lang: { value: string }; nativeLabel: { value: string } }> };
+    results: { bindings: WDBinding[] };
   };
 
-  const result: Record<string, string> = {};
-  for (const binding of json.results.bindings) {
-    const qid = binding.lang.value.replace('http://www.wikidata.org/entity/', '');
-    if (!result[qid]) {
-      result[qid] = binding.nativeLabel.value;
+  const map = new Map<string, string>();
+  for (const b of json.results.bindings) {
+    const code = b.glottolog.value;
+    // Some languages have multiple P1705 values — take the first one we see
+    if (!map.has(code)) {
+      map.set(code, b.nativeLabel.value);
     }
   }
-  return result;
+  return map;
+}
+
+async function fetchAllWikidataEndonyms(): Promise<Map<string, string>> {
+  const combined = new Map<string, string>();
+  let offset = 0;
+  let page = 1;
+
+  while (true) {
+    process.stdout.write(`  Fetching Wikidata page ${page} (offset ${offset})...`);
+    const pageMap = await fetchWikidataPage(offset);
+    process.stdout.write(` ${pageMap.size} entries\n`);
+
+    for (const [k, v] of pageMap) {
+      if (!combined.has(k)) combined.set(k, v);
+    }
+
+    if (pageMap.size < PAGE_SIZE) break; // last page
+
+    offset += PAGE_SIZE;
+    page++;
+    await sleep(PAGE_DELAY_MS);
+  }
+
+  return combined;
 }
 
 async function main() {
-  console.log('Fetching languages from Supabase...');
+  console.log('Fetching all Wikidata native labels via Glottolog code (P1394)...');
+  const wikidataMap = await fetchAllWikidataEndonyms();
+  console.log(`\nTotal Wikidata entries with Glottolog codes + native labels: ${wikidataMap.size}`);
 
+  if (wikidataMap.size === 0) {
+    console.log('No data returned from Wikidata — aborting.');
+    process.exit(1);
+  }
+
+  // Fetch all DB languages that need endonyms
+  console.log('\nFetching languages from Supabase where endonym is NULL...');
   const { data: languages, error: fetchErr } = await supabase
     .from('languages')
-    .select('id, glottocode, english_name, endonym')
-    .in('glottocode', BABAGIGI_GLOTTOCODES);
+    .select('id, glottocode, english_name')
+    .is('endonym', null);
 
   if (fetchErr) throw new Error(`Supabase fetch error: ${fetchErr.message}`);
   if (!languages?.length) {
-    console.log('No matching languages found. Run migration-008 first.');
+    console.log('All languages already have endonyms — nothing to do.');
     process.exit(0);
   }
 
-  // Only target languages with null endonyms
-  const needsEndonym = languages.filter((l) => !l.endonym);
-  if (!needsEndonym.length) {
-    console.log('All 33 Babagigi languages already have endonyms — nothing to do.');
+  console.log(`${languages.length} languages in DB have no endonym.`);
+
+  // Match and collect updates
+  const updates: Array<{ id: string; glottocode: string; english_name: string; endonym: string }> = [];
+  for (const lang of languages) {
+    const endonym = wikidataMap.get(lang.glottocode);
+    if (endonym) {
+      updates.push({ id: lang.id, glottocode: lang.glottocode, english_name: lang.english_name, endonym });
+    }
+  }
+
+  console.log(`Wikidata has endonyms for ${updates.length} of ${languages.length} languages.\n`);
+
+  if (updates.length === 0) {
+    console.log('No matches found — nothing to update.');
     process.exit(0);
   }
 
-  console.log(`${needsEndonym.length} languages need endonyms from Wikidata.`);
-
-  const qids = needsEndonym
-    .map((l) => GLOTTO_TO_QID[l.glottocode])
-    .filter((q): q is string => !!q);
-
-  if (!qids.length) {
-    console.log('No known Wikidata QIDs for the remaining languages.');
-    process.exit(0);
-  }
-
-  console.log(`Querying Wikidata SPARQL for ${qids.length} QIDs...`);
-  const endonymMap = await fetchWikidataEndonyms(qids);
-  console.log(`Received ${Object.keys(endonymMap).length} native labels.`);
-
+  // Apply updates in batches
   let updated = 0;
-  let notFound = 0;
+  let errors = 0;
 
-  for (const lang of needsEndonym) {
-    const qid = GLOTTO_TO_QID[lang.glottocode];
-    if (!qid) {
-      console.log(`  No QID mapping: ${lang.english_name} (${lang.glottocode})`);
-      notFound++;
-      continue;
+  for (let i = 0; i < updates.length; i += UPDATE_BATCH_SIZE) {
+    const batch = updates.slice(i, i + UPDATE_BATCH_SIZE);
+
+    for (const u of batch) {
+      const { error } = await supabase
+        .from('languages')
+        .update({ endonym: u.endonym })
+        .eq('id', u.id)
+        .is('endonym', null); // safety: never overwrite manually curated data
+
+      if (error) {
+        console.error(`  Error updating ${u.english_name}: ${error.message}`);
+        errors++;
+      } else {
+        updated++;
+      }
     }
 
-    const endonym = endonymMap[qid];
-    if (!endonym) {
-      console.log(`  No Wikidata endonym: ${lang.english_name} (${qid})`);
-      notFound++;
-      continue;
-    }
-
-    const { error } = await supabase
-      .from('languages')
-      .update({ endonym })
-      .eq('id', lang.id)
-      .is('endonym', null); // safety: only update if still null
-
-    if (error) {
-      console.error(`  Error updating ${lang.english_name}: ${error.message}`);
-    } else {
-      console.log(`  ${lang.english_name}: "${endonym}"`);
-      updated++;
-    }
+    process.stdout.write(`\r  ${updated}/${updates.length} updated...`);
   }
 
-  console.log(`\nDone. ${updated} endonyms updated, ${notFound} not found in Wikidata.`);
+  console.log(`\n\nDone.`);
+  console.log(`  ${updated} endonyms written to database`);
+  console.log(`  ${updates.length - updated - errors} already had endonyms (skipped)`);
+  if (errors > 0) console.warn(`  ${errors} errors`);
+  console.log(`  ${languages.length - updates.length} languages have no Wikidata entry for native label`);
 }
 
 main().catch((err) => {

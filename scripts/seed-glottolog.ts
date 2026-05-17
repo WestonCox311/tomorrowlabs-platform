@@ -59,14 +59,18 @@ async function main() {
     name: headers.indexOf('Name'),
     iso: headers.indexOf('ISO639P3code'),
     level: headers.indexOf('Level'),
+    family: headers.indexOf('Family_ID'),
   };
 
   const missingHeaders = Object.entries(idx)
-    .filter(([, v]) => v === -1)
+    .filter(([k, v]) => v === -1 && k !== 'family') // family is optional
     .map(([k]) => k);
   if (missingHeaders.length > 0) {
     throw new Error(`Missing expected CSV columns: ${missingHeaders.join(', ')}`);
   }
+
+  // Glottolog classifies all artificial/constructed languages under family arti1235.
+  const ARTIFICIAL_FAMILY_ID = 'arti1235';
 
   type LanguageRow = {
     english_name: string;
@@ -74,6 +78,7 @@ async function main() {
     iso_639_3: string | null;
     granularity: 'language';
     is_signed_language: boolean;
+    is_constructed: boolean;
   };
 
   const records: LanguageRow[] = [];
@@ -96,8 +101,11 @@ async function main() {
     const iso = cols[idx.iso]?.trim() || null;
     const name = cols[idx.name] ?? glottocode;
     const nameLower = name.toLowerCase();
+    const familyId = idx.family !== -1 ? (cols[idx.family] ?? '') : '';
+
     const isSignedLanguage =
       nameLower.includes('sign language') || nameLower.includes('signed language');
+    const isConstructed = familyId === ARTIFICIAL_FAMILY_ID;
 
     records.push({
       english_name: name,
@@ -105,6 +113,7 @@ async function main() {
       iso_639_3: iso,
       granularity: 'language',
       is_signed_language: isSignedLanguage,
+      is_constructed: isConstructed,
     });
   }
 
