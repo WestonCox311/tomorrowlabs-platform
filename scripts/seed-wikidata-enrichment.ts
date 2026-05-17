@@ -10,6 +10,10 @@
  *   3. orthographies               — Writing systems (P282) + ISO 15924 codes (P506)
  *   4. vitality_assessments        — UNESCO vitality status (P1999)
  *
+ * Strategy: VALUES batching rather than LIMIT/OFFSET pagination.
+ * Wikidata throttles open-ended queries hard; providing the specific set of
+ * glottocodes you want in each query is cheap and reliable.
+ *
  * Idempotency:
  *   - wikidata_qid: only updated where currently NULL
  *   - speaker_populations, orthographies, vitality_assessments: existing rows
@@ -21,9 +25,9 @@
 import { supabase } from './lib/supabase';
 
 const SPARQL_ENDPOINT = 'https://query.wikidata.org/sparql';
-const PAGE_SIZE = 3000;
-const PAGE_DELAY_MS = 8000;  // 8s between pages — Wikidata rate-limits aggressively
-const MAX_RETRIES = 5;
+const SPARQL_BATCH = 200;   // glottocodes per query — keep each query cheap
+const BATCH_DELAY_MS = 2000; // 2s between batches — polite but fast
+const MAX_RETRIES = 4;
 const SOURCE_ID = '11111111-0000-0000-0000-000000000002';
 const INSERT_BATCH = 500;
 const UPDATE_BATCH = 50;
@@ -32,11 +36,10 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-type Binding = Record<string, { type: string; value: string }>;
+type Binding = Record<string, { type: string; value: string } | undefined>;
 
-async function sparqlPage<T extends Binding>(query: string, offset: number): Promise<T[]> {
-  const paged = `${query}\nLIMIT ${PAGE_SIZE}\nOFFSET ${offset}`;
-  const url = `${SPARQL_ENDPOINT}?query=${encodeURIComponent(paged)}&format=json`;
+async function sparqlQuery<T extends Binding>(query: string): Promise<T[]> {
+  const url = `${SPARQL_ENDPOINT}?query=${encodeURIComponent(query)}&format=json`;
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     const res = await fetch(url, {
@@ -53,8 +56,18 @@ async function sparqlPage<T extends Binding>(query: string, offset: number): Pro
 
     if (res.status === 429 || res.status === 503) {
       const retryAfter = res.headers.get('Retry-After');
-      const waitMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : Math.min(15000 * attempt, 120000);
-      console.warn(`\n  Rate limited (HTTP ${res.status}). Waiting ${waitMs / 1000}s before retry ${attempt}/${MAX_RETRIES}...`);
+      const waitMs = retryAfter
+        ? parseInt(retryAfter, 10) * 1000
+        : Math.min(10000 * attempt, 60000);
+      process.stdout.write(`\n  HTTP ${res.status} — waiting ${waitMs / 1000}s (attempt ${attempt}/${MAX_RETRIES})...`);
+      await sleep(waitMs);
+      continue;
+    }
+
+    if (res.status === 504 || res.status === 500) {
+      // Gateway timeout or server error — retry with backoff
+      const waitMs = 5000 * attempt;
+      process.stdout.write(`\n  HTTP ${res.status} — waiting ${waitMs / 1000}s (attempt ${attempt}/${MAX_RETRIES})...`);
       await sleep(waitMs);
       continue;
     }
@@ -65,30 +78,39 @@ async function sparqlPage<T extends Binding>(query: string, offset: number): Pro
   throw new Error(`Wikidata SPARQL failed after ${MAX_RETRIES} retries`);
 }
 
-async function fetchAll<T extends Binding>(query: string, label: string): Promise<T[]> {
+// Run a query in batches over glottocodes using VALUES clause.
+// Each batch of SPARQL_BATCH glottocodes becomes one focused query.
+async function batchedQuery<T extends Binding>(
+  glottocodes: string[],
+  makeQuery: (valuesClause: string) => string,
+  label: string,
+): Promise<T[]> {
   const all: T[] = [];
-  let offset = 0;
-  let page = 1;
-  while (true) {
-    process.stdout.write(`  [${label}] page ${page} (offset ${offset})...`);
-    const rows = await sparqlPage<T>(query, offset);
-    process.stdout.write(` ${rows.length} rows\n`);
+  const total = Math.ceil(glottocodes.length / SPARQL_BATCH);
+  for (let i = 0; i < glottocodes.length; i += SPARQL_BATCH) {
+    const batch = glottocodes.slice(i, i + SPARQL_BATCH);
+    const batchNum = Math.floor(i / SPARQL_BATCH) + 1;
+    process.stdout.write(`\r  [${label}] batch ${batchNum}/${total}...`);
+    const valuesClause = batch.map((c) => `"${c}"`).join(' ');
+    const rows = await sparqlQuery<T>(makeQuery(valuesClause));
     all.push(...rows);
-    if (rows.length < PAGE_SIZE) break;
-    offset += PAGE_SIZE;
-    page++;
-    await sleep(PAGE_DELAY_MS);
+    if (i + SPARQL_BATCH < glottocodes.length) await sleep(BATCH_DELAY_MS);
   }
+  process.stdout.write('\n');
   return all;
 }
 
 // ─── Phase 1: Wikidata QIDs ──────────────────────────────────────────────────
 
-async function fetchQIDs(): Promise<Map<string, string>> {
-  const query = `SELECT ?glottolog ?lang WHERE {
-    ?lang wdt:P1394 ?glottolog.
-  }`;
-  const rows = await fetchAll<Binding>(query, 'QIDs');
+async function fetchQIDs(glottocodes: string[]): Promise<Map<string, string>> {
+  const rows = await batchedQuery<Binding>(
+    glottocodes,
+    (vals) => `SELECT ?glottolog ?lang WHERE {
+  VALUES ?glottolog { ${vals} }
+  ?lang wdt:P1394 ?glottolog.
+}`,
+    'QIDs',
+  );
   const map = new Map<string, string>();
   for (const b of rows) {
     const code = b.glottolog?.value;
@@ -100,12 +122,16 @@ async function fetchQIDs(): Promise<Map<string, string>> {
 
 // ─── Phase 2: Speaker counts (P1098) ────────────────────────────────────────
 
-async function fetchSpeakerCounts(): Promise<Map<string, number>> {
-  const query = `SELECT ?glottolog ?speakers WHERE {
-    ?lang wdt:P1394 ?glottolog.
-    ?lang wdt:P1098 ?speakers.
-  }`;
-  const rows = await fetchAll<Binding>(query, 'Speaker counts');
+async function fetchSpeakerCounts(glottocodes: string[]): Promise<Map<string, number>> {
+  const rows = await batchedQuery<Binding>(
+    glottocodes,
+    (vals) => `SELECT ?glottolog ?speakers WHERE {
+  VALUES ?glottolog { ${vals} }
+  ?lang wdt:P1394 ?glottolog.
+  ?lang wdt:P1098 ?speakers.
+}`,
+    'Speakers',
+  );
   const map = new Map<string, number>();
   for (const b of rows) {
     if (b.speakers?.type !== 'literal') continue;
@@ -123,14 +149,18 @@ async function fetchSpeakerCounts(): Promise<Map<string, number>> {
 
 type ScriptEntry = { name: string; iso15924: string | null };
 
-async function fetchWritingSystems(): Promise<Map<string, ScriptEntry[]>> {
-  const query = `SELECT ?glottolog ?scriptLabel ?iso15924 WHERE {
-    ?lang wdt:P1394 ?glottolog.
-    ?lang wdt:P282 ?script.
-    OPTIONAL { ?script wdt:P506 ?iso15924. }
-    SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
-  }`;
-  const rows = await fetchAll<Binding>(query, 'Writing systems');
+async function fetchWritingSystems(glottocodes: string[]): Promise<Map<string, ScriptEntry[]>> {
+  const rows = await batchedQuery<Binding>(
+    glottocodes,
+    (vals) => `SELECT ?glottolog ?scriptLabel ?iso15924 WHERE {
+  VALUES ?glottolog { ${vals} }
+  ?lang wdt:P1394 ?glottolog.
+  ?lang wdt:P282 ?script.
+  OPTIONAL { ?script wdt:P506 ?iso15924. }
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+}`,
+    'Scripts',
+  );
   const map = new Map<string, ScriptEntry[]>();
   for (const b of rows) {
     const code = b.glottolog?.value;
@@ -156,13 +186,17 @@ const UNESCO_LABEL_MAP: Record<string, string> = {
   'extinct language': 'extinct',
 };
 
-async function fetchUNESCOVitality(): Promise<Map<string, string>> {
-  const query = `SELECT ?glottolog ?vitalityLabel WHERE {
-    ?lang wdt:P1394 ?glottolog.
-    ?lang wdt:P1999 ?vitality.
-    SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
-  }`;
-  const rows = await fetchAll<Binding>(query, 'UNESCO vitality');
+async function fetchUNESCOVitality(glottocodes: string[]): Promise<Map<string, string>> {
+  const rows = await batchedQuery<Binding>(
+    glottocodes,
+    (vals) => `SELECT ?glottolog ?vitalityLabel WHERE {
+  VALUES ?glottolog { ${vals} }
+  ?lang wdt:P1394 ?glottolog.
+  ?lang wdt:P1999 ?vitality.
+  SERVICE wikibase:label { bd:serviceParam wikibase:language "en". }
+}`,
+    'UNESCO',
+  );
   const map = new Map<string, string>();
   for (const b of rows) {
     const code = b.glottolog?.value;
@@ -184,6 +218,7 @@ async function fetchAllLanguages(): Promise<Array<{ id: string; glottocode: stri
     const { data, error } = await supabase
       .from('languages')
       .select('id, glottocode')
+      .not('glottocode', 'is', null)
       .range(from, from + DB_PAGE - 1);
     if (error) throw new Error(`DB fetch: ${error.message}`);
     if (!data?.length) break;
@@ -208,26 +243,24 @@ async function main() {
 
   console.log('=== Wikidata Enrichment Seed ===\n');
 
-  // ── Load all DB languages ─────────────────────────────────────────────────
+  // Load all DB languages with glottocodes
   console.log('Loading languages from database...');
   const languages = await fetchAllLanguages();
-  console.log(`  ${languages.length} languages loaded\n`);
+  console.log(`  ${languages.length} languages with glottocodes loaded\n`);
 
+  const glottocodes = languages.map((l) => l.glottocode);
   const glottoToId = new Map<string, string>();
-  for (const l of languages) {
-    if (l.glottocode) glottoToId.set(l.glottocode, l.id);
-  }
+  for (const l of languages) glottoToId.set(l.glottocode, l.id);
 
   const today = new Date().toISOString().split('T')[0];
 
   // ── Phase 1: QIDs ─────────────────────────────────────────────────────────
-  console.log('Phase 1: Wikidata QIDs...');
-  const qidMap = await fetchQIDs();
-  console.log(`  ${qidMap.size} QID mappings from Wikidata\n`);
-  await sleep(PAGE_DELAY_MS);
+  console.log(`Phase 1: Wikidata QIDs (${Math.ceil(glottocodes.length / SPARQL_BATCH)} batches)...`);
+  const qidMap = await fetchQIDs(glottocodes);
+  console.log(`  ${qidMap.size} QID mappings found\n`);
 
   let qidUpdated = 0;
-  const qidCandidates = languages.filter((l) => l.glottocode && qidMap.has(l.glottocode));
+  const qidCandidates = languages.filter((l) => qidMap.has(l.glottocode));
   for (let i = 0; i < qidCandidates.length; i += UPDATE_BATCH) {
     const batch = qidCandidates.slice(i, i + UPDATE_BATCH);
     for (const l of batch) {
@@ -238,15 +271,14 @@ async function main() {
         .is('wikidata_qid', null);
       if (!error) qidUpdated++;
     }
-    process.stdout.write(`\r  QID updates: ${Math.min(i + UPDATE_BATCH, qidCandidates.length)}/${qidCandidates.length}...`);
+    process.stdout.write(`\r  Updating QIDs: ${Math.min(i + UPDATE_BATCH, qidCandidates.length)}/${qidCandidates.length}...`);
   }
   console.log(`\n  Updated ${qidUpdated} wikidata_qid values\n`);
 
   // ── Phase 2: Speaker counts ───────────────────────────────────────────────
-  console.log('Phase 2: Speaker counts...');
-  const speakerMap = await fetchSpeakerCounts();
+  console.log(`Phase 2: Speaker counts (${Math.ceil(glottocodes.length / SPARQL_BATCH)} batches)...`);
+  const speakerMap = await fetchSpeakerCounts(glottocodes);
   console.log(`  ${speakerMap.size} languages with speaker counts\n`);
-  await sleep(PAGE_DELAY_MS);
 
   await supabase.from('speaker_populations').delete().eq('source_id', SOURCE_ID);
 
@@ -265,7 +297,6 @@ async function main() {
       notes: 'Wikidata P1098 global estimate. Often sourced from Wikipedia infoboxes — use with caution.',
     });
   }
-
   let spInserted = 0;
   for (let i = 0; i < spRows.length; i += INSERT_BATCH) {
     const { error } = await supabase.from('speaker_populations').insert(spRows.slice(i, i + INSERT_BATCH));
@@ -276,10 +307,9 @@ async function main() {
   console.log(`\n  Inserted ${spInserted} speaker population rows\n`);
 
   // ── Phase 3: Writing systems ──────────────────────────────────────────────
-  console.log('Phase 3: Writing systems...');
-  const scriptMap = await fetchWritingSystems();
+  console.log(`Phase 3: Writing systems (${Math.ceil(glottocodes.length / SPARQL_BATCH)} batches)...`);
+  const scriptMap = await fetchWritingSystems(glottocodes);
   console.log(`  ${scriptMap.size} languages with writing system data\n`);
-  await sleep(PAGE_DELAY_MS);
 
   await supabase.from('orthographies').delete().eq('source_id', SOURCE_ID);
 
@@ -299,7 +329,6 @@ async function main() {
       });
     }
   }
-
   let orthInserted = 0;
   for (let i = 0; i < orthRows.length; i += INSERT_BATCH) {
     const { error } = await supabase.from('orthographies').insert(orthRows.slice(i, i + INSERT_BATCH));
@@ -310,8 +339,8 @@ async function main() {
   console.log(`\n  Inserted ${orthInserted} orthography rows\n`);
 
   // ── Phase 4: UNESCO vitality ──────────────────────────────────────────────
-  console.log('Phase 4: UNESCO vitality...');
-  const vitalityMap = await fetchUNESCOVitality();
+  console.log(`Phase 4: UNESCO vitality (${Math.ceil(glottocodes.length / SPARQL_BATCH)} batches)...`);
+  const vitalityMap = await fetchUNESCOVitality(glottocodes);
   console.log(`  ${vitalityMap.size} languages with UNESCO vitality data\n`);
 
   await supabase.from('vitality_assessments').delete().eq('source_id', SOURCE_ID);
@@ -330,7 +359,6 @@ async function main() {
       rationale: 'Wikidata P1999 (UNESCO language status). Community-maintained; verify against UNESCO Atlas for critical decisions.',
     });
   }
-
   let vitInserted = 0;
   for (let i = 0; i < vitRows.length; i += INSERT_BATCH) {
     const { error } = await supabase.from('vitality_assessments').insert(vitRows.slice(i, i + INSERT_BATCH));
