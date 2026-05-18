@@ -25,6 +25,7 @@
     "seed:worldbank-populations": "tsx scripts/seed-worldbank-populations.ts",
     "seed:wikidata-populations": "tsx scripts/seed-wikidata-populations.ts",
     "seed:wikidata-language-countries": "tsx scripts/seed-wikidata-language-countries.ts",
+    "seed:census-language-speakers": "tsx scripts/seed-census-language-speakers.ts",
     "seed:all": "npm run seed:glottolog && npm run seed:geonames && npm run seed:endonyms",
     "types:generate": "supabase gen types typescript --project-id mufemokeeftjklqemqyc > src/lib/database.types.ts"
   },

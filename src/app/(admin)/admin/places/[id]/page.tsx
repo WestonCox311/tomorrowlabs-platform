@@ -157,17 +157,19 @@ export default async function PlaceDetailPage({ params }: Props) {
     const lang = Array.isArray(row.languages) ? row.languages[0] : row.languages;
     if (!lang) continue;
     const existing = langMap.get(lang.id);
-    if (existing && row.estimated_speakers == null) continue; // keep existing if concentration has no speaker data
+    if (existing && row.estimated_speakers == null) continue; // keep existing if this row has no speaker data
     langMap.set(lang.id, {
       id: lang.id,
       english_name: lang.english_name,
       glottocode: lang.glottocode ?? null,
       ethnologue_status: lang.ethnologue_status ?? null,
-      estimated_speakers: row.estimated_speakers ?? null,
-      is_diaspora: row.is_diaspora_concentration ?? null,
-      is_official: row.is_official_language ?? false,
+      estimated_speakers: row.estimated_speakers ?? existing?.estimated_speakers ?? null,
+      // Preserve non-null/non-false flags from either source row — multiple sources
+      // (e.g. Wikidata + ACS) may each have partial flag data.
+      is_diaspora: row.is_diaspora_concentration ?? existing?.is_diaspora ?? null,
+      is_official: (row.is_official_language ?? false) || (existing?.is_official ?? false),
       is_signed: lang.is_signed_language ?? false,
-      data_year: row.data_year ?? null,
+      data_year: row.data_year ?? existing?.data_year ?? null,
       source: 'concentration',
     });
   }
