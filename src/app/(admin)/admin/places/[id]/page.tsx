@@ -224,6 +224,11 @@ export default async function PlaceDetailPage({ params }: Props) {
                 Run <code className="font-mono bg-muted px-1 rounded">npm run seed:geonames-admin1</code> to populate states and provinces.
               </p>
             )}
+            {place.granularity === 'state-province' && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Run <code className="font-mono bg-muted px-1 rounded">npm run seed:geonames-admin2</code> to populate counties and districts.
+              </p>
+            )}
           </div>
         ) : (
           <>
