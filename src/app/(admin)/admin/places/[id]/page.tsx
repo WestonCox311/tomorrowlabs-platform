@@ -179,9 +179,10 @@ export default async function PlaceDetailPage({ params }: Props) {
 
   const spokenLangs     = languages.filter(l => !l.is_signed);
   const signedLangs     = languages.filter(l => l.is_signed);
-  const officialLangs   = spokenLangs.filter(l => l.is_official);
-  const indigenousLangs = spokenLangs.filter(l => !l.is_official && !l.is_diaspora);
-  const diasporaLangs   = spokenLangs.filter(l => !l.is_official && l.is_diaspora === true);
+  const topLangs        = spokenLangs.filter(l => l.estimated_speakers != null).slice(0, 10);
+  const topLangIds      = new Set(topLangs.map(l => l.id));
+  const indigenousLangs = spokenLangs.filter(l => !topLangIds.has(l.id) && !l.is_diaspora);
+  const diasporaLangs   = spokenLangs.filter(l => !topLangIds.has(l.id) && l.is_diaspora === true);
 
   const deleteAction = deletePlace.bind(null, id);
 
@@ -360,13 +361,13 @@ export default async function PlaceDetailPage({ params }: Props) {
           </div>
         ) : (
           <div className="space-y-6">
-            {officialLangs.length > 0 && (
+            {topLangs.length > 0 && (
               <div>
                 <h3 className="text-sm font-medium text-ink mb-2">
-                  Officially recognized
-                  <span className="ml-1.5 text-muted-foreground font-normal">({officialLangs.length})</span>
+                  Most spoken
+                  <span className="ml-1.5 text-muted-foreground font-normal">(top {topLangs.length})</span>
                 </h3>
-                <LanguageTable langs={officialLangs} />
+                <LanguageTable langs={topLangs} />
               </div>
             )}
 
