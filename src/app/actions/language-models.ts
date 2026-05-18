@@ -28,7 +28,8 @@ function bigint_(formData: FormData, key: string): number | null {
 
 function parseFields(formData: FormData) {
   return {
-    language_id: str(formData, 'language_id')!,
+    language_id: str(formData, 'language_id'),
+    parent_model_id: str(formData, 'parent_model_id'),
     model_name: str(formData, 'model_name')!,
     provider: str(formData, 'provider')!,
     model_type: str(formData, 'model_type')!,
@@ -51,20 +52,34 @@ function parseFields(formData: FormData) {
 export async function createLanguageModel(formData: FormData) {
   const supabase = createClient();
   const fields = parseFields(formData);
-  const langId = fields.language_id;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await (supabase.from('language_models') as any).insert(fields);
+  const { data: created, error } = await (supabase.from('language_models') as any)
+    .insert(fields)
+    .select('id')
+    .single();
+
   if (error) {
-    redirect(`/admin/language-models/new?language_id=${langId}&error=${encodeURIComponent(error.message)}`);
+    const back = fields.parent_model_id
+      ? `/admin/language-models/new?parent_id=${fields.parent_model_id}&error=${encodeURIComponent(error.message)}`
+      : fields.language_id
+      ? `/admin/language-models/new?language_id=${fields.language_id}&error=${encodeURIComponent(error.message)}`
+      : `/admin/language-models/new?error=${encodeURIComponent(error.message)}`;
+    redirect(back);
   }
-  redirect(`/admin/languages/${langId}`);
+
+  if (fields.parent_model_id) {
+    redirect(`/admin/language-models/${fields.parent_model_id}`);
+  } else if (fields.language_id) {
+    redirect(`/admin/languages/${fields.language_id}`);
+  } else {
+    redirect(`/admin/language-models/${created.id}`);
+  }
 }
 
 export async function updateLanguageModel(id: string, formData: FormData) {
   const supabase = createClient();
   const fields = parseFields(formData);
-  const langId = fields.language_id;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (supabase.from('language_models') as any)
@@ -74,7 +89,14 @@ export async function updateLanguageModel(id: string, formData: FormData) {
   if (error) {
     redirect(`/admin/language-models/${id}/edit?error=${encodeURIComponent(error.message)}`);
   }
-  redirect(`/admin/languages/${langId}`);
+
+  if (fields.parent_model_id) {
+    redirect(`/admin/language-models/${fields.parent_model_id}`);
+  } else if (fields.language_id) {
+    redirect(`/admin/languages/${fields.language_id}`);
+  } else {
+    redirect(`/admin/language-models/${id}`);
+  }
 }
 
 export async function deleteLanguageModel(id: string, languageId: string) {

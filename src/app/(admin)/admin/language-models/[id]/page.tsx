@@ -6,12 +6,18 @@ import type { Database } from '@/lib/database.types';
 type TechQuality = Database['public']['Enums']['tech_quality_tier'];
 
 type Model = Database['public']['Tables']['language_models']['Row'] & {
-  wer?: number | null;
-  cer?: number | null;
-  bleu_score?: number | null;
-  eval_dataset?: string | null;
-  eval_notes?: string | null;
-  parameter_count?: number | null;
+  parent_model_id?: string | null;
+  languages: { id: string; english_name: string } | null;
+};
+
+type ChildModel = {
+  id: string;
+  model_name: string;
+  wer: number | null;
+  cer: number | null;
+  bleu_score: number | null;
+  quality_tier: TechQuality | null;
+  last_verified_at: string | null;
   languages: { id: string; english_name: string } | null;
 };
 
@@ -58,7 +64,27 @@ export default async function ModelDetailPage({ params }: Props) {
   const model = data as Model;
   const lang = Array.isArray(model.languages) ? model.languages[0] : model.languages;
 
+  // Fetch parent if this is a child
+  let parent: { id: string; model_name: string } | null = null;
+  if (model.parent_model_id) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: p } = await (supabase.from('language_models') as any)
+      .select('id, model_name')
+      .eq('id', model.parent_model_id)
+      .single();
+    parent = p;
+  }
+
+  // Fetch children if this is a parent
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: childData } = await (supabase.from('language_models') as any)
+    .select('id, model_name, wer, cer, bleu_score, quality_tier, last_verified_at, languages ( id, english_name )')
+    .eq('parent_model_id', id)
+    .order('model_name', { ascending: true });
+  const children = (childData ?? []) as ChildModel[];
+
   const hasMetrics = model.wer != null || model.cer != null || model.bleu_score != null;
+  const isMultilingual = !lang && children.length > 0;
 
   return (
     <div className="p-8 max-w-2xl">
@@ -66,7 +92,15 @@ export default async function ModelDetailPage({ params }: Props) {
       <div className="flex items-center gap-2 text-xs text-muted-foreground mb-6">
         <Link href="/admin/language-models" className="hover:text-ink transition-colors">Models</Link>
         <span>/</span>
-        {lang && (
+        {parent && (
+          <>
+            <Link href={`/admin/language-models/${parent.id}`} className="hover:text-ink transition-colors">
+              {parent.model_name}
+            </Link>
+            <span>/</span>
+          </>
+        )}
+        {lang && !parent && (
           <>
             <Link href={`/admin/languages/${lang.id}`} className="hover:text-ink transition-colors">
               {lang.english_name}
@@ -84,6 +118,11 @@ export default async function ModelDetailPage({ params }: Props) {
             <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${TYPE_COLORS[model.model_type] ?? 'bg-muted text-muted-foreground'}`}>
               {model.model_type.toUpperCase()}
             </span>
+            {isMultilingual && (
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800">
+                Multilingual
+              </span>
+            )}
             {model.quality_tier && (
               <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${TIER_COLORS[model.quality_tier]}`}>
                 {model.quality_tier}
@@ -91,17 +130,92 @@ export default async function ModelDetailPage({ params }: Props) {
             )}
           </div>
           <h1 className="text-2xl font-semibold text-ink">{model.model_name}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{model.provider}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {model.provider}
+            {lang && <> · <Link href={`/admin/languages/${lang.id}`} className="hover:underline text-moss">{lang.english_name}</Link></>}
+          </p>
         </div>
-        <Link
-          href={`/admin/language-models/${model.id}/edit`}
-          className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted/50 transition-colors text-ink"
-        >
-          Edit
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/admin/language-models/new?parent_id=${model.id}`}
+            className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted/50 transition-colors text-ink"
+          >
+            + Add language
+          </Link>
+          <Link
+            href={`/admin/language-models/${model.id}/edit`}
+            className="px-3 py-1.5 text-sm border border-border rounded-md hover:bg-muted/50 transition-colors text-ink"
+          >
+            Edit
+          </Link>
+        </div>
       </div>
 
-      {/* Evaluation Metrics */}
+      {/* Language variants — shown for multilingual parents */}
+      {children.length > 0 && (
+        <section className="mb-6">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">
+            Language Variants ({children.length})
+          </h2>
+          <div className="rounded-md border border-border overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border bg-muted/40">
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Language</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Variant name</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">WER</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">CER</th>
+                  <th className="px-4 py-2.5 text-right text-xs font-medium text-muted-foreground">BLEU</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Quality</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {children.map((child) => {
+                  const childLang = Array.isArray(child.languages) ? child.languages[0] : child.languages;
+                  return (
+                    <tr key={child.id} className="hover:bg-muted/30 cursor-pointer transition-colors">
+                      <td className="px-4 py-2.5">
+                        {childLang ? (
+                          <Link href={`/admin/language-models/${child.id}`} className="text-ink hover:underline text-sm">
+                            {childLang.english_name}
+                          </Link>
+                        ) : (
+                          <Link href={`/admin/language-models/${child.id}`} className="text-muted-foreground hover:underline text-sm">—</Link>
+                        )}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs text-muted-foreground">
+                        <Link href={`/admin/language-models/${child.id}`} className="hover:text-ink transition-colors">
+                          {child.model_name !== model.model_name ? child.model_name : ''}
+                        </Link>
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono text-xs">
+                        {child.wer != null ? `${child.wer.toFixed(1)}%` : <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono text-xs">
+                        {child.cer != null ? `${child.cer.toFixed(1)}%` : <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono text-xs">
+                        {child.bleu_score != null ? child.bleu_score.toFixed(1) : <span className="text-muted-foreground">—</span>}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {child.quality_tier ? (
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${TIER_COLORS[child.quality_tier]}`}>
+                            {child.quality_tier}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground text-xs">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* Evaluation Metrics — shown for language-specific entries */}
       {hasMetrics && (
         <section className="mb-6">
           <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Evaluation Metrics</h2>
@@ -140,6 +254,14 @@ export default async function ModelDetailPage({ params }: Props) {
       <section className="mb-6">
         <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Details</h2>
         <dl className="rounded-md border border-border divide-y divide-border">
+          {parent && (
+            <div className="grid grid-cols-3 px-4 py-2.5">
+              <dt className="text-sm text-muted-foreground">Part of</dt>
+              <dd className="col-span-2 text-sm text-ink">
+                <Link href={`/admin/language-models/${parent.id}`} className="hover:underline text-moss">{parent.model_name}</Link>
+              </dd>
+            </div>
+          )}
           {lang && (
             <div className="grid grid-cols-3 px-4 py-2.5">
               <dt className="text-sm text-muted-foreground">Language</dt>

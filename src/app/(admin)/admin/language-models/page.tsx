@@ -8,7 +8,9 @@ import type { Database } from '@/lib/database.types';
 type TechQuality = Database['public']['Enums']['tech_quality_tier'];
 
 type ModelRow = Database['public']['Tables']['language_models']['Row'] & {
-  languages: { id: string; english_name: string; endonym: string | null } | null;
+  parent_model_id?: string | null;
+  languages: { id: string; english_name: string } | null;
+  children?: { id: string; languages: { english_name: string } | null }[];
 };
 
 const MODEL_TYPES = ['stt', 'tts', 'llm', 'translation', 'g2p'] as const;
@@ -95,8 +97,8 @@ export default async function LanguageModelsPage({ searchParams }: Props) {
     .select(`
       id, model_name, model_type, provider, quality_tier,
       is_open_source, license, wer, cer, bleu_score,
-      eval_dataset, parameter_count, last_verified_at,
-      languages ( id, english_name, endonym )
+      parameter_count, last_verified_at, parent_model_id,
+      languages ( id, english_name )
     `, { count: 'exact' })
     .order(sortCol, { ascending: sortDir === 'asc', nullsFirst: false })
     .range(from, to);
@@ -113,6 +115,21 @@ export default async function LanguageModelsPage({ searchParams }: Props) {
   const total = count ?? 0;
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const hasFilters = q || type || provider || tier;
+
+  // Fetch child counts for parent models in this page
+  const parentIds = models.filter((m) => !m.parent_model_id).map((m) => m.id);
+  let childCounts: Record<string, number> = {};
+  if (parentIds.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data: childData } = await (supabase.from('language_models') as any)
+      .select('parent_model_id')
+      .in('parent_model_id', parentIds);
+    if (childData) {
+      for (const row of childData) {
+        childCounts[row.parent_model_id] = (childCounts[row.parent_model_id] ?? 0) + 1;
+      }
+    }
+  }
 
   function sortHref(col: string) {
     const p = new URLSearchParams();
@@ -165,42 +182,32 @@ export default async function LanguageModelsPage({ searchParams }: Props) {
       </div>
 
       <FilterBar
+        basePath="/admin/language-models"
         filters={[
           {
             param: 'type',
             label: 'Type',
-            value: type ?? '',
-            options: [
-              { value: '', label: 'All types' },
-              ...MODEL_TYPES.map((t) => ({ value: t, label: t.toUpperCase() })),
-            ],
+            defaultLabel: 'All types',
+            options: MODEL_TYPES.map((t) => ({ value: t, label: t.toUpperCase() })),
           },
           {
             param: 'provider',
             label: 'Provider',
-            value: provider ?? '',
-            options: [
-              { value: '', label: 'All providers' },
-              ...PROVIDERS.map((p) => ({ value: p, label: p })),
-            ],
+            defaultLabel: 'All providers',
+            options: PROVIDERS.map((p) => ({ value: p, label: p })),
           },
           {
             param: 'tier',
             label: 'Quality',
-            value: tier ?? '',
-            options: [
-              { value: '', label: 'All tiers' },
-              ...QUALITY_TIERS.map((t) => ({ value: t, label: t })),
-            ],
+            defaultLabel: 'All tiers',
+            options: QUALITY_TIERS.map((t) => ({ value: t, label: t })),
           },
         ]}
         searchParam="q"
-        searchValue={q ?? ''}
         searchPlaceholder="Search model name or provider…"
-        baseHref="/admin/language-models"
       />
 
-      <div className="mt-4 rounded-md border border-border overflow-x-auto">
+      <div className="rounded-md border border-border overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border bg-muted/40">
@@ -237,12 +244,26 @@ export default async function LanguageModelsPage({ searchParams }: Props) {
             {models.length > 0 ? (
               models.map((model) => {
                 const lang = Array.isArray(model.languages) ? model.languages[0] : model.languages;
+                const childCount = childCounts[model.id] ?? 0;
+                const isChild = !!model.parent_model_id;
+
                 return (
-                  <ClickableRow key={model.id} href={`/admin/language-models/${model.id}`}>
-                    <td className="px-4 py-3 font-medium text-ink">{model.model_name}</td>
+                  <ClickableRow
+                    key={model.id}
+                    href={`/admin/language-models/${model.id}`}
+                    className={isChild ? 'bg-muted/20' : undefined}
+                  >
+                    <td className="px-4 py-3 font-medium text-ink">
+                      {isChild && <span className="mr-2 text-muted-foreground">↳</span>}
+                      {model.model_name}
+                    </td>
                     <td className="px-4 py-3 text-sm">
                       {lang ? (
                         <span className="text-ink">{lang.english_name}</span>
+                      ) : childCount > 0 ? (
+                        <span className="text-muted-foreground text-xs">
+                          Multilingual · {childCount} {childCount === 1 ? 'language' : 'languages'}
+                        </span>
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
