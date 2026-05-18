@@ -201,23 +201,59 @@ async function main() {
   }
   console.log(`  Resolved ${resolved.length}/${LANG_DEFS.length} language definitions\n`);
 
-  // ── Step 3: inherit diaspora/official flags from existing Wikidata rows ───────
+  // ── Step 3: inherit diaspora/official/indigenous flags from existing Wikidata rows
   // ACS rows coexist with Wikidata rows. Carrying flags forward prevents
   // ACS data from silently clearing diaspora/official status on the places page.
   const { data: existingUS } = await sb
     .from('geographic_concentrations')
-    .select('language_id, is_diaspora_concentration, is_official_language')
+    .select('language_id, is_diaspora_concentration, is_official_language, is_indigenous_language')
     .eq('country_code', 'US')
     .eq('region_type', 'country');
 
-  const existingFlags = new Map<string, { isDiaspora: boolean; isOfficial: boolean }>();
+  const existingFlags = new Map<string, { isDiaspora: boolean; isOfficial: boolean; isIndigenous: boolean }>();
   for (const row of existingUS ?? []) {
     existingFlags.set(row.language_id, {
       isDiaspora: row.is_diaspora_concentration ?? false,
       isOfficial: row.is_official_language ?? false,
+      isIndigenous: row.is_indigenous_language ?? false,
     });
   }
-  console.log(`  Inherited flags for ${existingFlags.size} languages from Wikidata rows\n`);
+  console.log(`  Inherited flags for ${existingFlags.size} languages from Wikidata rows`);
+
+  // ── Step 3b: fetch P37 official countries for LANG_DEFS to set diaspora flags ─
+  // For ACS languages without a Wikidata US row (no inherited flags), we need to
+  // know if the language is an immigrant language (has an official home country
+  // that isn't the US) vs. indigenous (no official home country at all).
+  const defGlottocodes = resolved
+    .map(r => r.def.glottocode)
+    .filter((g): g is string => !!g);
+  const vals = defGlottocodes.map(g => `"${g}"`).join(' ');
+  const sparql = `SELECT ?glottolog ?countryCode WHERE {
+  VALUES ?glottolog { ${vals} }
+  ?lang wdt:P1394 ?glottolog .
+  ?country wdt:P37 ?lang .
+  ?country wdt:P297 ?countryCode .
+} GROUP BY ?glottolog ?countryCode`;
+  let p37Map = new Map<string, Set<string>>();
+  try {
+    const wdRes = await fetch(
+      `https://query.wikidata.org/sparql?query=${encodeURIComponent(sparql)}&format=json`,
+      { headers: { 'User-Agent': 'TomorrowLabs-Platform/1.0', 'Accept': 'application/sparql-results+json' } }
+    );
+    const wdData = await wdRes.json() as { results: { bindings: Array<{ glottolog?: { value: string }; countryCode?: { value: string } }> } };
+    for (const b of wdData.results.bindings) {
+      const glot = b.glottolog?.value;
+      const cc = b.countryCode?.value?.toUpperCase();
+      if (glot && cc && cc.length === 2) {
+        if (!p37Map.has(glot)) p37Map.set(glot, new Set());
+        p37Map.get(glot)!.add(cc);
+      }
+    }
+    console.log(`  P37 data fetched for ${p37Map.size}/${defGlottocodes.length} ACS language definitions\n`);
+  } catch (e) {
+    console.warn(`  ⚠ P37 lookup failed, falling back to inherited flags: ${(e as Error).message}\n`);
+    p37Map = new Map();
+  }
 
   // ── Step 4: fetch ACS data ────────────────────────────────────────────────────
   const [nationalRaw, statesRaw] = await Promise.all([
@@ -256,7 +292,7 @@ async function main() {
   // English — inserted before other languages so it doesn't interfere with resolved loop
   if (englishId) {
     const englishSpeakers = nationalCounts.get(ENGLISH_VAR) ?? null;
-    const englishFlags = existingFlags.get(englishId) ?? { isDiaspora: false, isOfficial: false };
+    const englishFlags = existingFlags.get(englishId) ?? { isDiaspora: false, isOfficial: false, isIndigenous: false };
     gcRows.push({
       language_id: englishId,
       country_code: 'US',
@@ -265,6 +301,7 @@ async function main() {
       estimated_speakers: englishSpeakers,
       is_diaspora_concentration: englishFlags.isDiaspora,
       is_official_language: englishFlags.isOfficial,
+      is_indigenous_language: englishFlags.isIndigenous,
       data_year: DATA_YEAR,
       confidence: 'high',
       source_id: ACS_SOURCE_ID,
@@ -285,15 +322,19 @@ async function main() {
 
   for (const { def, languageId } of resolved) {
     const speakers = nationalCounts.get(def.varId) ?? null;
-    const flags = existingFlags.get(languageId) ?? { isDiaspora: false, isOfficial: false };
+    const flags = existingFlags.get(languageId) ?? { isDiaspora: false, isOfficial: false, isIndigenous: false };
+    // Use P37 native-country data if available; fall back to inherited Wikidata flags.
+    const nativeSet = def.glottocode ? p37Map.get(def.glottocode) : undefined;
+    const isDiaspora = nativeSet && nativeSet.size > 0 ? !nativeSet.has('US') : flags.isDiaspora;
     gcRows.push({
       language_id: languageId,
       country_code: 'US',
       region: 'national',
       region_type: 'country',
       estimated_speakers: speakers,
-      is_diaspora_concentration: flags.isDiaspora,
+      is_diaspora_concentration: isDiaspora,
       is_official_language: flags.isOfficial,
+      is_indigenous_language: flags.isIndigenous,
       data_year: DATA_YEAR,
       confidence: 'high',
       source_id: ACS_SOURCE_ID,
@@ -326,23 +367,26 @@ async function main() {
     if (englishId) {
       const s = stateCounts.get(ENGLISH_VAR) ?? null;
       if (s != null) {
-        const flags = existingFlags.get(englishId) ?? { isDiaspora: false, isOfficial: false };
-        gcRows.push({ language_id: englishId, country_code: 'US', region: iso, region_type: 'state-province', estimated_speakers: s, is_diaspora_concentration: flags.isDiaspora, is_official_language: flags.isOfficial, data_year: DATA_YEAR, confidence: 'high', source_id: ACS_SOURCE_ID });
+        const flags = existingFlags.get(englishId) ?? { isDiaspora: false, isOfficial: false, isIndigenous: false };
+        gcRows.push({ language_id: englishId, country_code: 'US', region: iso, region_type: 'state-province', estimated_speakers: s, is_diaspora_concentration: flags.isDiaspora, is_official_language: flags.isOfficial, is_indigenous_language: flags.isIndigenous, data_year: DATA_YEAR, confidence: 'high', source_id: ACS_SOURCE_ID });
       }
     }
 
     for (const { def, languageId } of resolved) {
       const speakers = stateCounts.get(def.varId) ?? null;
       if (speakers == null) continue; // skip truly-zero states to keep table lean
-      const flags = existingFlags.get(languageId) ?? { isDiaspora: false, isOfficial: false };
+      const flags = existingFlags.get(languageId) ?? { isDiaspora: false, isOfficial: false, isIndigenous: false };
+      const nativeSet = def.glottocode ? p37Map.get(def.glottocode) : undefined;
+      const isDiaspora = nativeSet && nativeSet.size > 0 ? !nativeSet.has('US') : flags.isDiaspora;
       gcRows.push({
         language_id: languageId,
         country_code: 'US',
         region: iso,
         region_type: 'state-province',
         estimated_speakers: speakers,
-        is_diaspora_concentration: flags.isDiaspora,
+        is_diaspora_concentration: isDiaspora,
         is_official_language: flags.isOfficial,
+        is_indigenous_language: flags.isIndigenous,
         data_year: DATA_YEAR,
         confidence: 'high',
         source_id: ACS_SOURCE_ID,

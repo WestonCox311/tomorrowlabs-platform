@@ -205,6 +205,40 @@ GROUP BY ?glottolog ?countryCode`,
   return map;
 }
 
+// ── Phase E: Indigenous language detection (P2341 — indigenous to) ───────────
+// P2341 can point to a country directly or to a region; we traverse one level
+// to the parent country via P17 so both cases resolve to an ISO alpha-2 code.
+
+async function fetchIndigenousCountries(glottocodes: string[]): Promise<Map<string, Set<string>>> {
+  const rows = await batchedQuery<Binding>(
+    glottocodes,
+    (vals) => `
+SELECT ?glottolog ?countryCode WHERE {
+  VALUES ?glottolog { ${vals} }
+  ?lang wdt:P1394 ?glottolog .
+  ?lang wdt:P2341 ?place .
+  {
+    ?place wdt:P297 ?countryCode .
+  } UNION {
+    ?place wdt:P17 ?country .
+    ?country wdt:P297 ?countryCode .
+  }
+}
+GROUP BY ?glottolog ?countryCode`,
+    'IndigenousCountries',
+  );
+
+  const map = new Map<string, Set<string>>();
+  for (const b of rows) {
+    const code = b.glottolog?.value;
+    const countryCode = b.countryCode?.value?.toUpperCase();
+    if (!code || !countryCode || countryCode.length !== 2) continue;
+    if (!map.has(code)) map.set(code, new Set());
+    map.get(code)!.add(countryCode);
+  }
+  return map;
+}
+
 // ── Phase D: Country-first speaker counts (P1098 + pq:P17) ───────────────────
 // Queries from the COUNTRY side: for each country, find every language that
 // has a P1098 (speaker count) statement qualified by P17=<that country>.
@@ -329,6 +363,10 @@ async function main() {
   const nativeCountriesMap = await fetchNativeCountries(glottocodes);
   console.log(`  Found official-language data for ${nativeCountriesMap.size} languages`);
 
+  console.log('\nPhase E: Fetching indigenous language data (P2341 indigenous to)…');
+  const indigenousCountriesMap = await fetchIndigenousCountries(glottocodes);
+  console.log(`  Found indigenous data for ${indigenousCountriesMap.size} languages`);
+
   // ── Phase D: Country-first speaker counts ───────────────────────────────────
   console.log('\nPhase D: Fetching country-qualified speaker counts (P1098+pq:P17)…');
   const speakersByCountry = await fetchSpeakersByCountry(allIsoCodes);
@@ -367,6 +405,7 @@ async function main() {
       // If no P37 data exists (language has no official country), default to false.
       const isDiaspora = nativeSet && nativeSet.size > 0 ? !nativeSet.has(countryCode) : false;
       const isOfficial = !!(nativeSet && nativeSet.has(countryCode));
+      const isIndigenous = !!(indigenousCountriesMap.get(glottocode)?.has(countryCode));
       gcRows.push({
         language_id: languageId,
         country_code: countryCode,
@@ -375,6 +414,7 @@ async function main() {
         estimated_speakers: speakers,
         is_diaspora_concentration: isDiaspora,
         is_official_language: isOfficial,
+        is_indigenous_language: isIndigenous,
         source_id: WIKIDATA_SOURCE_ID,
         confidence: 'low',
       });

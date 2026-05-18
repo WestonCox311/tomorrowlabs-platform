@@ -21,6 +21,7 @@ interface MergedLanguage {
   estimated_speakers: number | null;
   is_diaspora: boolean | null;
   is_official: boolean;
+  is_indigenous: boolean;
   is_signed: boolean;
   data_year: number | null;
   source: 'array' | 'concentration';
@@ -116,7 +117,7 @@ export default async function PlaceDetailPage({ params }: Props) {
     // Languages via geographic_concentrations (national rows only for country pages)
     place.iso_3166_1_alpha2
       ? sb.from('geographic_concentrations')
-          .select('language_id, estimated_speakers, is_diaspora_concentration, is_official_language, data_year, languages(id, english_name, glottocode, ethnologue_status, is_signed_language)')
+          .select('language_id, estimated_speakers, is_diaspora_concentration, is_official_language, is_indigenous_language, data_year, languages(id, english_name, glottocode, ethnologue_status, is_signed_language)')
           .eq('country_code', place.iso_3166_1_alpha2)
           .eq('region_type', 'country')
           .limit(500)
@@ -148,6 +149,7 @@ export default async function PlaceDetailPage({ params }: Props) {
       estimated_speakers: null,
       is_diaspora: null,
       is_official: false,
+      is_indigenous: false,
       is_signed: lang.is_signed_language ?? false,
       data_year: null,
       source: 'array',
@@ -169,6 +171,7 @@ export default async function PlaceDetailPage({ params }: Props) {
       // (e.g. Wikidata + ACS) may each have partial flag data.
       is_diaspora: row.is_diaspora_concentration ?? existing?.is_diaspora ?? null,
       is_official: (row.is_official_language ?? false) || (existing?.is_official ?? false),
+      is_indigenous: (row.is_indigenous_language ?? false) || (existing?.is_indigenous ?? false),
       is_signed: lang.is_signed_language ?? false,
       data_year: row.data_year ?? existing?.data_year ?? null,
       source: 'concentration',
@@ -184,8 +187,12 @@ export default async function PlaceDetailPage({ params }: Props) {
   const signedLangs     = languages.filter(l => l.is_signed);
   const topLangs        = spokenLangs.filter(l => l.estimated_speakers != null).slice(0, 10);
   const topLangIds      = new Set(topLangs.map(l => l.id));
-  const indigenousLangs = spokenLangs.filter(l => !topLangIds.has(l.id) && !l.is_diaspora);
-  const diasporaLangs   = spokenLangs.filter(l => !topLangIds.has(l.id) && l.is_diaspora === true);
+  const indigenousLangs = spokenLangs.filter(l => !topLangIds.has(l.id) && l.is_indigenous);
+  // Diaspora & immigrant: explicitly flagged diaspora, or any non-indigenous non-official language
+  // not in the top 10 (immigrant languages whose diaspora flag may not yet be set).
+  const diasporaLangs   = spokenLangs.filter(
+    l => !topLangIds.has(l.id) && !l.is_indigenous && (l.is_diaspora === true || !l.is_official)
+  );
 
   const deleteAction = deletePlace.bind(null, id);
 
@@ -377,7 +384,7 @@ export default async function PlaceDetailPage({ params }: Props) {
             {indigenousLangs.length > 0 && (
               <div>
                 <h3 className="text-sm font-medium text-ink mb-2">
-                  Indigenous & minority
+                  Indigenous languages
                   <span className="ml-1.5 text-muted-foreground font-normal">({indigenousLangs.length})</span>
                 </h3>
                 <LanguageTable langs={indigenousLangs} />
@@ -387,7 +394,7 @@ export default async function PlaceDetailPage({ params }: Props) {
             {diasporaLangs.length > 0 && (
               <div>
                 <h3 className="text-sm font-medium text-ink mb-2">
-                  Diaspora communities
+                  Diaspora & immigrant
                   <span className="ml-1.5 text-muted-foreground font-normal">({diasporaLangs.length})</span>
                 </h3>
                 <LanguageTable langs={diasporaLangs} />
