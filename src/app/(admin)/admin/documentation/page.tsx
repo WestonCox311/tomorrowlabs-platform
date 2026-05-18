@@ -7,9 +7,14 @@ const VERSIONS = [
     version: '0.6.0',
     date: '2026-05-17',
     changes: [
+      'Comprehensive filter system: replaced all admin list page filter forms with FilterBar client component (auto-applying selects, active filter chips, clear all).',
+      'Languages: added Ethnologue status and Constructed/Natural filters.',
+      'Tech Readiness: added language name search, Omnilingual, and IPA path filters.',
+      'Communities: added Self-identified filter.',
       'Added Documentation and Sources pages to admin sidebar.',
       'Separated sidebar navigation into Data and Products sections.',
       'seed:glottolog-endangerment: fixed Code_ID column matching; now inserts 8,242 vitality_assessments rows and fills 4,170 ethnologue_status values.',
+      'Fixed UNESCO P1999 label mapping (Wikidata uses "1 safe", "2 vulnerable" prefix format).',
     ],
   },
   {

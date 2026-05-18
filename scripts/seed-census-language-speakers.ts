@@ -42,8 +42,19 @@ interface LangDef {
   label: string;
   glottocode?: string;   // preferred lookup
   englishName?: string;  // fallback lookup against languages.english_name
+  confidence?: 'high' | 'medium' | 'low' | 'estimated';  // override default 'high'
+  notes?: string;        // data quality or attribution caveat stored on the row
 }
 
+// B16001_002E: "Speak only English at home" — a lower-bound count for English.
+// Total English speakers are higher (bilingual speakers aren't counted here),
+// but this is the best available ACS signal and still correct at ~243M nationally.
+const ENGLISH_VAR = 'B16001_002E';
+
+// Variable layout verified against ACS 2022 B16001 group definition via Census API.
+// The 2022 table merged Yiddish + Pennsylvania Dutch + other West Germanic into one
+// aggregate (B16001_021E), eliminating the formerly separate Scandinavian group.
+// This shifted all subsequent variables 6 positions earlier vs older ACS years.
 const LANG_DEFS: LangDef[] = [
   { varId: 'B16001_003E', label: 'Spanish',              glottocode: 'stan1288' },
   { varId: 'B16001_006E', label: 'French',               englishName: 'French' },
@@ -51,43 +62,57 @@ const LANG_DEFS: LangDef[] = [
   { varId: 'B16001_012E', label: 'Italian',              englishName: 'Italian' },
   { varId: 'B16001_015E', label: 'Portuguese',           englishName: 'Portuguese' },
   { varId: 'B16001_018E', label: 'German',               englishName: 'German' },
-  { varId: 'B16001_021E', label: 'Yiddish',              glottocode: 'east2295', englishName: 'Eastern Yiddish' },
-  // B16001_024E: Other West Germanic — skip (aggregate)
-  // B16001_027E: Scandinavian — skip (aggregate)
-  { varId: 'B16001_030E', label: 'Greek',                glottocode: 'mode1248', englishName: 'Modern Greek' },
-  { varId: 'B16001_033E', label: 'Russian',              glottocode: 'russ1263' },
-  { varId: 'B16001_036E', label: 'Polish',               englishName: 'Polish' },
-  // B16001_039E: Serbo-Croatian — skip (aggregate)
-  { varId: 'B16001_042E', label: 'Ukrainian',            englishName: 'Ukrainian' },
-  { varId: 'B16001_045E', label: 'Armenian',             glottocode: 'nucl1235', englishName: 'Eastern Armenian' },
-  { varId: 'B16001_048E', label: 'Persian',              glottocode: 'west2369', englishName: 'Western Farsi' },
-  { varId: 'B16001_051E', label: 'Gujarati',             glottocode: 'guja1252' },
-  { varId: 'B16001_054E', label: 'Hindi',                glottocode: 'hind1269' },
-  { varId: 'B16001_057E', label: 'Urdu',                 glottocode: 'urdu1245' },
-  { varId: 'B16001_060E', label: 'Punjabi',              glottocode: 'panj1256', englishName: 'Eastern Panjabi' },
-  { varId: 'B16001_063E', label: 'Bengali',              glottocode: 'beng1280' },
-  // B16001_066E: Nepali, Marathi, or other Indic — skip (aggregate)
-  { varId: 'B16001_069E', label: 'Telugu',               glottocode: 'telu1262' },
-  { varId: 'B16001_072E', label: 'Tamil',                glottocode: 'tami1289' },
-  // B16001_075E: Malayalam, Kannada, or other Dravidian — skip (aggregate)
-  { varId: 'B16001_078E', label: 'Sinhala',              englishName: 'Sinhala' },
-  // B16001_081E: Other Indo-European — skip (aggregate)
-  { varId: 'B16001_084E', label: 'Vietnamese',           glottocode: 'viet1252' },
-  { varId: 'B16001_087E', label: 'Khmer',                glottocode: 'cent1989', englishName: 'Central Khmer' },
-  { varId: 'B16001_090E', label: 'Hmong',                englishName: 'Hmong' },
-  // B16001_093E: Thai, Lao, or other Tai-Kadai — skip (aggregate)
-  { varId: 'B16001_096E', label: 'Japanese',             englishName: 'Japanese' },
-  { varId: 'B16001_099E', label: 'Korean',               glottocode: 'kore1280' },
-  { varId: 'B16001_102E', label: 'Chinese',              englishName: 'Mandarin Chinese' },
-  { varId: 'B16001_105E', label: 'Tagalog',              glottocode: 'taga1270' },
-  // B16001_108E: Ilocano, Samoan, Hawaiian, or other Austronesian — skip (aggregate)
-  { varId: 'B16001_111E', label: 'Arabic',               glottocode: 'stan1318', englishName: 'Standard Arabic' },
-  { varId: 'B16001_114E', label: 'Hebrew',               glottocode: 'hebr1245', englishName: 'Modern Hebrew' },
-  // B16001_117E: Amharic, Somali, or other Afro-Asiatic — skip (aggregate)
-  // B16001_120E: Yoruba, Twi, Igbo, or other West Africa — skip (aggregate)
-  // B16001_123E: Swahili or other Bantu — skip (aggregate)
-  { varId: 'B16001_126E', label: 'Navajo',               glottocode: 'nava1243' },
-  // B16001_129E: Other Native North American — skip (aggregate)
+  // B16001_021E: "Yiddish, Pennsylvania Dutch or other West Germanic" — skip (aggregate)
+  { varId: 'B16001_024E', label: 'Greek',                glottocode: 'mode1248', englishName: 'Modern Greek' },
+  { varId: 'B16001_027E', label: 'Russian',              glottocode: 'russ1263' },
+  { varId: 'B16001_030E', label: 'Polish',               englishName: 'Polish' },
+  // B16001_033E: Serbo-Croatian — skip (politically split language pair)
+  // B16001_036E: "Ukrainian or other Slavic languages" — skip (aggregate)
+  { varId: 'B16001_039E', label: 'Armenian',             glottocode: 'nucl1235', englishName: 'Eastern Armenian' },
+  { varId: 'B16001_042E', label: 'Persian',              glottocode: 'west2369', englishName: 'Western Farsi' },
+  { varId: 'B16001_045E', label: 'Gujarati',             glottocode: 'guja1252' },
+  { varId: 'B16001_048E', label: 'Hindi',                glottocode: 'hind1269' },
+  { varId: 'B16001_051E', label: 'Urdu',                 glottocode: 'urdu1245' },
+  { varId: 'B16001_054E', label: 'Punjabi',              glottocode: 'panj1256', englishName: 'Eastern Panjabi' },
+  { varId: 'B16001_057E', label: 'Bengali',              glottocode: 'beng1280' },
+  // B16001_060E: "Nepali, Marathi, or other Indic languages" — skip (aggregate)
+  // B16001_063E: "Other Indo-European languages" — skip (aggregate)
+  { varId: 'B16001_066E', label: 'Telugu',               glottocode: 'telu1262' },
+  { varId: 'B16001_069E', label: 'Tamil',                glottocode: 'tami1289' },
+  // B16001_072E: "Malayalam, Kannada, or other Dravidian languages" — skip (aggregate)
+  // ACS "Chinese" covers Mandarin, Cantonese, Min, Wu, Hakka, and other Chinese varieties.
+  // Mapped to Mandarin Chinese as the plurality variety (~70% est.). The Babagigi roadmap
+  // treats Cantonese (Wave 2) as a separate community — these figures cannot be separated
+  // from ACS alone. Confidence downgraded to 'medium' to reflect attribution imprecision.
+  { varId: 'B16001_075E', label: 'Chinese',              englishName: 'Mandarin Chinese',
+    confidence: 'medium',
+    notes: "ACS 'Chinese' category covers Mandarin, Cantonese, and other Chinese varieties. Mandarin is the plurality (~70% est.); Cantonese (~20% est.) is not separately tracked in ACS." },
+  { varId: 'B16001_078E', label: 'Japanese',             englishName: 'Japanese' },
+  { varId: 'B16001_081E', label: 'Korean',               glottocode: 'kore1280' },
+  // ACS "Hmong" covers White Hmong (Hmong Daw) and Green Hmong (Mong Leng) — two distinct
+  // languages. No ACS data separates them. Community-sourced data needed to split counts.
+  { varId: 'B16001_084E', label: 'Hmong',                englishName: 'Hmong',
+    confidence: 'low',
+    notes: "ACS 'Hmong' covers primarily White Hmong (Hmong Daw) and Green Hmong (Mong Leng) — two distinct languages. Mapped to a single record as proxy; variety split requires community-sourced data." },
+  { varId: 'B16001_087E', label: 'Vietnamese',           glottocode: 'viet1252' },
+  { varId: 'B16001_090E', label: 'Khmer',                glottocode: 'cent1989', englishName: 'Central Khmer' },
+  // B16001_093E: "Thai, Lao, or other Tai-Kadai languages" — skip (aggregate)
+  // B16001_096E: "Other languages of Asia" — skip (aggregate)
+  { varId: 'B16001_099E', label: 'Tagalog',              glottocode: 'taga1270' },
+  // B16001_102E: "Ilocano, Samoan, Hawaiian, or other Austronesian languages" — skip (aggregate)
+  // ACS "Arabic" covers a diverse speech community of Egyptian, Levantine, Gulf, Moroccan,
+  // Yemeni, and other spoken Arabic varieties. Modern Standard Arabic (MSA/stan1318) is used
+  // as a lookup proxy — nobody speaks MSA as a home language. Confidence 'medium'.
+  { varId: 'B16001_105E', label: 'Arabic',               glottocode: 'stan1318', englishName: 'Standard Arabic',
+    confidence: 'medium',
+    notes: "ACS 'Arabic' covers spoken varieties (Egyptian, Levantine, Gulf, Moroccan, etc.). Modern Standard Arabic used as a database proxy identifier; it is not a home-spoken language." },
+  { varId: 'B16001_108E', label: 'Hebrew',               glottocode: 'hebr1245', englishName: 'Modern Hebrew' },
+  // B16001_111E: "Amharic, Somali, or other Afro-Asiatic languages" — skip (aggregate)
+  // B16001_114E: "Yoruba, Twi, Igbo, or other languages of Western Africa" — skip (aggregate)
+  // B16001_117E: "Swahili or other languages of Central, Eastern, and Southern Africa" — skip (aggregate)
+  { varId: 'B16001_120E', label: 'Navajo',               glottocode: 'nava1243' },
+  // B16001_123E: "Other Native languages of North America" — skip (aggregate)
+  // B16001_126E: "Other and unspecified languages" — skip (aggregate)
 ];
 
 // ── state FIPS → ISO 3166-2 ───────────────────────────────────────────────────
@@ -109,7 +134,7 @@ const FIPS_TO_ISO: Record<string, string> = {
 // ── Census API ────────────────────────────────────────────────────────────────
 
 async function fetchACS(geography: 'national' | 'states'): Promise<string[][]> {
-  const varList = LANG_DEFS.map(d => d.varId).join(',');
+  const varList = [ENGLISH_VAR, ...LANG_DEFS.map(d => d.varId)].join(',');
   const forParam = geography === 'national' ? 'us:1' : 'state:*';
   const key = process.env.CENSUS_API_KEY;
   const keyParam = key ? `&key=${key}` : '';
@@ -193,23 +218,59 @@ async function main() {
   }
   console.log(`  Resolved ${resolved.length}/${LANG_DEFS.length} language definitions\n`);
 
-  // ── Step 3: inherit diaspora/official flags from existing Wikidata rows ───────
+  // ── Step 3: inherit diaspora/official/indigenous flags from existing Wikidata rows
   // ACS rows coexist with Wikidata rows. Carrying flags forward prevents
   // ACS data from silently clearing diaspora/official status on the places page.
   const { data: existingUS } = await sb
     .from('geographic_concentrations')
-    .select('language_id, is_diaspora_concentration, is_official_language')
+    .select('language_id, is_diaspora_concentration, is_official_language, is_indigenous_language')
     .eq('country_code', 'US')
     .eq('region_type', 'country');
 
-  const existingFlags = new Map<string, { isDiaspora: boolean; isOfficial: boolean }>();
+  const existingFlags = new Map<string, { isDiaspora: boolean; isOfficial: boolean; isIndigenous: boolean }>();
   for (const row of existingUS ?? []) {
     existingFlags.set(row.language_id, {
       isDiaspora: row.is_diaspora_concentration ?? false,
       isOfficial: row.is_official_language ?? false,
+      isIndigenous: row.is_indigenous_language ?? false,
     });
   }
-  console.log(`  Inherited flags for ${existingFlags.size} languages from Wikidata rows\n`);
+  console.log(`  Inherited flags for ${existingFlags.size} languages from Wikidata rows`);
+
+  // ── Step 3b: fetch P37 official countries for LANG_DEFS to set diaspora flags ─
+  // For ACS languages without a Wikidata US row (no inherited flags), we need to
+  // know if the language is an immigrant language (has an official home country
+  // that isn't the US) vs. indigenous (no official home country at all).
+  const defGlottocodes = resolved
+    .map(r => r.def.glottocode)
+    .filter((g): g is string => !!g);
+  const vals = defGlottocodes.map(g => `"${g}"`).join(' ');
+  const sparql = `SELECT ?glottolog ?countryCode WHERE {
+  VALUES ?glottolog { ${vals} }
+  ?lang wdt:P1394 ?glottolog .
+  ?country wdt:P37 ?lang .
+  ?country wdt:P297 ?countryCode .
+} GROUP BY ?glottolog ?countryCode`;
+  let p37Map = new Map<string, Set<string>>();
+  try {
+    const wdRes = await fetch(
+      `https://query.wikidata.org/sparql?query=${encodeURIComponent(sparql)}&format=json`,
+      { headers: { 'User-Agent': 'TomorrowLabs-Platform/1.0', 'Accept': 'application/sparql-results+json' } }
+    );
+    const wdData = await wdRes.json() as { results: { bindings: Array<{ glottolog?: { value: string }; countryCode?: { value: string } }> } };
+    for (const b of wdData.results.bindings) {
+      const glot = b.glottolog?.value;
+      const cc = b.countryCode?.value?.toUpperCase();
+      if (glot && cc && cc.length === 2) {
+        if (!p37Map.has(glot)) p37Map.set(glot, new Set());
+        p37Map.get(glot)!.add(cc);
+      }
+    }
+    console.log(`  P37 data fetched for ${p37Map.size}/${defGlottocodes.length} ACS language definitions\n`);
+  } catch (e) {
+    console.warn(`  ⚠ P37 lookup failed, falling back to inherited flags: ${(e as Error).message}\n`);
+    p37Map = new Map();
+  }
 
   // ── Step 4: fetch ACS data ────────────────────────────────────────────────────
   const [nationalRaw, statesRaw] = await Promise.all([
@@ -223,14 +284,20 @@ async function main() {
 
   function extractCounts(row: string[]): Map<string, number> {
     const out = new Map<string, number>();
-    for (const { def } of resolved) {
-      const idx = varIndex.get(def.varId);
+    // Include English var alongside all language defs
+    for (const varId of [ENGLISH_VAR, ...resolved.map(r => r.def.varId)]) {
+      const idx = varIndex.get(varId);
       if (idx == null) continue;
       const n = parseInt(row[idx]!, 10);
-      if (!isNaN(n) && n > 0) out.set(def.varId, n);
+      if (!isNaN(n) && n > 0) out.set(varId, n);
     }
     return out;
   }
+
+  // Resolve English language_id
+  const englishId = byGlottocode.get('stan1293') ?? byName.get('english') ?? byName.get('standard english');
+  if (!englishId) console.warn('  ⚠ Could not resolve English in DB — skipping');
+  else console.log('  Resolved English');
 
   // ── Step 5: build rows ────────────────────────────────────────────────────────
   const gcRows: object[] = [];
@@ -238,19 +305,56 @@ async function main() {
 
   // National
   const nationalCounts = extractCounts(nationalRaw[1]!);
+
+  // English — inserted before other languages so it doesn't interfere with resolved loop
+  if (englishId) {
+    const englishSpeakers = nationalCounts.get(ENGLISH_VAR) ?? null;
+    const englishFlags = existingFlags.get(englishId) ?? { isDiaspora: false, isOfficial: false, isIndigenous: false };
+    gcRows.push({
+      language_id: englishId,
+      country_code: 'US',
+      region: 'national',
+      region_type: 'country',
+      estimated_speakers: englishSpeakers,
+      is_diaspora_concentration: englishFlags.isDiaspora,
+      is_official_language: englishFlags.isOfficial,
+      is_indigenous_language: englishFlags.isIndigenous,
+      data_year: DATA_YEAR,
+      confidence: 'high',
+      source_id: ACS_SOURCE_ID,
+    });
+    if (englishSpeakers != null) {
+      spRows.push({
+        language_id: englishId,
+        country_code: 'US',
+        context: 'home',
+        l1_speakers: englishSpeakers,
+        data_year: DATA_YEAR,
+        confidence: 'high',
+        source_id: ACS_SOURCE_ID,
+        notes: 'ACS 5-year 2022: English-only home speakers (B16001_002E). Bilingual English speakers counted under their other language.',
+      });
+    }
+  }
+
   for (const { def, languageId } of resolved) {
     const speakers = nationalCounts.get(def.varId) ?? null;
-    const flags = existingFlags.get(languageId) ?? { isDiaspora: false, isOfficial: false };
+    const flags = existingFlags.get(languageId) ?? { isDiaspora: false, isOfficial: false, isIndigenous: false };
+    // Use P37 native-country data if available; fall back to inherited Wikidata flags.
+    const nativeSet = def.glottocode ? p37Map.get(def.glottocode) : undefined;
+    const isDiaspora = nativeSet && nativeSet.size > 0 ? !nativeSet.has('US') : flags.isDiaspora;
+    const rowConfidence = def.confidence ?? 'high';
     gcRows.push({
       language_id: languageId,
       country_code: 'US',
       region: 'national',
       region_type: 'country',
       estimated_speakers: speakers,
-      is_diaspora_concentration: flags.isDiaspora,
+      is_diaspora_concentration: isDiaspora,
       is_official_language: flags.isOfficial,
+      is_indigenous_language: flags.isIndigenous,
       data_year: DATA_YEAR,
-      confidence: 'high',
+      confidence: rowConfidence,
       source_id: ACS_SOURCE_ID,
     });
     if (speakers != null) {
@@ -260,9 +364,9 @@ async function main() {
         context: 'home',
         l1_speakers: speakers,
         data_year: DATA_YEAR,
-        confidence: 'high',
+        confidence: rowConfidence,
         source_id: ACS_SOURCE_ID,
-        notes: 'ACS 5-year 2022: population 5+ speaking language at home',
+        notes: def.notes ?? 'ACS 5-year 2022: population 5+ speaking language at home',
       });
     }
   }
@@ -277,20 +381,32 @@ async function main() {
     if (!iso) { console.warn(`  ⚠ Unknown FIPS: ${fips}`); continue; }
 
     const stateCounts = extractCounts(stateRow);
+
+    if (englishId) {
+      const s = stateCounts.get(ENGLISH_VAR) ?? null;
+      if (s != null) {
+        const flags = existingFlags.get(englishId) ?? { isDiaspora: false, isOfficial: false, isIndigenous: false };
+        gcRows.push({ language_id: englishId, country_code: 'US', region: iso, region_type: 'state-province', estimated_speakers: s, is_diaspora_concentration: flags.isDiaspora, is_official_language: flags.isOfficial, is_indigenous_language: flags.isIndigenous, data_year: DATA_YEAR, confidence: 'high', source_id: ACS_SOURCE_ID });
+      }
+    }
+
     for (const { def, languageId } of resolved) {
       const speakers = stateCounts.get(def.varId) ?? null;
       if (speakers == null) continue; // skip truly-zero states to keep table lean
-      const flags = existingFlags.get(languageId) ?? { isDiaspora: false, isOfficial: false };
+      const flags = existingFlags.get(languageId) ?? { isDiaspora: false, isOfficial: false, isIndigenous: false };
+      const nativeSet = def.glottocode ? p37Map.get(def.glottocode) : undefined;
+      const isDiaspora = nativeSet && nativeSet.size > 0 ? !nativeSet.has('US') : flags.isDiaspora;
       gcRows.push({
         language_id: languageId,
         country_code: 'US',
         region: iso,
         region_type: 'state-province',
         estimated_speakers: speakers,
-        is_diaspora_concentration: flags.isDiaspora,
+        is_diaspora_concentration: isDiaspora,
         is_official_language: flags.isOfficial,
+        is_indigenous_language: flags.isIndigenous,
         data_year: DATA_YEAR,
-        confidence: 'high',
+        confidence: def.confidence ?? 'high',
         source_id: ACS_SOURCE_ID,
       });
     }

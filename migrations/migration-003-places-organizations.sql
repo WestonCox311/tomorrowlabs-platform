@@ -172,7 +172,7 @@ CREATE TABLE places (
   
   -- For indigenous territories
   native_land_ca_id text,          -- native-land.ca identifier
-  community_designated_by_id uuid REFERENCES organizations(id),  -- If place is community-designated
+  community_designated_by_id uuid,  -- FK to organizations added after organizations table exists (see ALTER TABLE below)
   
   -- Geographic data
   latitude decimal(10, 7),
@@ -280,6 +280,11 @@ CREATE INDEX idx_orgs_active ON organizations(is_active) WHERE is_active = true;
 
 COMMENT ON TABLE organizations IS
   'Layer 1 reference entity for organizations TomorrowLabs interacts with, observes, or could interact with. Includes partners, funders, peers, vendors, governments, and competitors.';
+
+-- Now that organizations exists, wire up the deferred FK from places
+ALTER TABLE places
+  ADD CONSTRAINT fk_places_community_designated_by
+  FOREIGN KEY (community_designated_by_id) REFERENCES organizations(id);
 
 -- =====================================================================
 -- PART 5: TIME-SERIES TABLES FOR PLACES

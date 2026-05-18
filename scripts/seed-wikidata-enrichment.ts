@@ -177,6 +177,14 @@ async function fetchWritingSystems(glottocodes: string[]): Promise<Map<string, S
 // ─── Phase 4: UNESCO vitality (P1999) ────────────────────────────────────────
 
 const UNESCO_LABEL_MAP: Record<string, string> = {
+  // Wikidata labels use number prefixes (e.g. "1 safe", "2 vulnerable")
+  '1 safe': 'safe',
+  '2 vulnerable': 'vulnerable',
+  '3 definitely endangered': 'definitely-endangered',
+  '4 severely endangered': 'severely-endangered',
+  '5 critically endangered': 'critically-endangered',
+  '6 extinct': 'extinct',
+  // Fallbacks without prefix
   'safe language': 'safe',
   'safe': 'safe',
   'vulnerable language': 'vulnerable',

@@ -8,8 +8,8 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-paper-warm">
-      <aside className="w-64 shrink-0 flex flex-col border-r border-border bg-background">
+    <div className="flex h-svh bg-paper-warm overflow-hidden">
+      <aside className="w-64 shrink-0 flex flex-col border-r border-border bg-background h-svh overflow-hidden">
         <div className="px-6 py-5 border-b border-border">
           <Link href="/admin/dashboard" className="block">
             <span className="text-sm font-semibold tracking-wide uppercase text-muted-foreground">

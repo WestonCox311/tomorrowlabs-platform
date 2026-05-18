@@ -45,19 +45,6 @@ npm run seed:wikidata                 # Full Wikidata enrichment: speaker counts
                                       # writing systems, UNESCO vitality, QIDs.
 npm run seed:wikidata-language-countries  # Language × country distribution + diaspora
                                           # + indigenous flags. ~25 min (5 phases).
-npm run seed:language-hierarchy           # ISO 639-3 macrolanguage parent–child wiring.
-                                          # Sets parent_language_id on member languages.
-                                          # e.g. Cantonese → Chinese macrolanguage.
-npm run seed:grambank                     # 195 typological features × ~2,467 languages
-                                          # into linguistic_features. ~5–10 min.
-                                          # Requires migration-018 to be applied first.
-npm run seed:masakhane                    # Masakhane NLP benchmark coverage for ~40
-                                          # African languages (NER, POS, MT, sentiment,
-                                          # QA, LLM benchmarks) into text_corpora. ~1–2 min.
-                                          # Requires migration-019 to be applied first.
-npm run seed:phoible                      # Phonological inventories for ~2,177 languages
-                                          # into linguistic_features (feature_code='PHOIBLE:X').
-                                          # ~2–3 min. Requires migration-018.
 ```
 
 ### Layer 4 — Technology readiness (~5 min)
@@ -103,8 +90,6 @@ Exception: `seed:glottolog` and `seed:geonames` use upsert on natural keys — a
 | `vitality_assessments` | ~8,000–12,000 |
 | `orthographies` | ~3,000–5,000 |
 | `audio_corpora` | ~130–150 |
-| `text_corpora` | ~400–600 (Masakhane: ~40 langs × ~12 datasets) |
-| `linguistic_features` | ~420,000–510,000 (Grambank ~443K + PHOIBLE ~60–80K) |
 | `tech_readiness` | ~8,600 (one per language) |
 
 ---
