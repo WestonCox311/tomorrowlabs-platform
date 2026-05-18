@@ -21,6 +21,7 @@ interface MergedLanguage {
   estimated_speakers: number | null;
   is_diaspora: boolean | null;
   is_official: boolean;
+  is_signed: boolean;
   data_year: number | null;
   source: 'array' | 'concentration';
 }
@@ -109,13 +110,13 @@ export default async function PlaceDetailPage({ params }: Props) {
 
     // Languages via primary_languages_used array
     sb.from('languages')
-      .select('id, english_name, glottocode, ethnologue_status')
+      .select('id, english_name, glottocode, ethnologue_status, is_signed_language')
       .contains('primary_languages_used', [id]),
 
     // Languages via geographic_concentrations (country-level only, by ISO alpha-2)
     place.iso_3166_1_alpha2
       ? sb.from('geographic_concentrations')
-          .select('language_id, estimated_speakers, is_diaspora_concentration, is_official_language, data_year, languages(id, english_name, glottocode, ethnologue_status)')
+          .select('language_id, estimated_speakers, is_diaspora_concentration, is_official_language, data_year, languages(id, english_name, glottocode, ethnologue_status, is_signed_language)')
           .eq('country_code', place.iso_3166_1_alpha2)
           .limit(500)
       : Promise.resolve({ data: [] }),
@@ -146,6 +147,7 @@ export default async function PlaceDetailPage({ params }: Props) {
       estimated_speakers: null,
       is_diaspora: null,
       is_official: false,
+      is_signed: lang.is_signed_language ?? false,
       data_year: null,
       source: 'array',
     });
@@ -164,6 +166,7 @@ export default async function PlaceDetailPage({ params }: Props) {
       estimated_speakers: row.estimated_speakers ?? null,
       is_diaspora: row.is_diaspora_concentration ?? null,
       is_official: row.is_official_language ?? false,
+      is_signed: lang.is_signed_language ?? false,
       data_year: row.data_year ?? null,
       source: 'concentration',
     });
@@ -174,9 +177,11 @@ export default async function PlaceDetailPage({ params }: Props) {
     a.english_name.localeCompare(b.english_name)
   );
 
-  const officialLangs   = languages.filter(l => l.is_official);
-  const indigenousLangs = languages.filter(l => !l.is_official && !l.is_diaspora);
-  const diasporaLangs   = languages.filter(l => !l.is_official && l.is_diaspora === true);
+  const spokenLangs     = languages.filter(l => !l.is_signed);
+  const signedLangs     = languages.filter(l => l.is_signed);
+  const officialLangs   = spokenLangs.filter(l => l.is_official);
+  const indigenousLangs = spokenLangs.filter(l => !l.is_official && !l.is_diaspora);
+  const diasporaLangs   = spokenLangs.filter(l => !l.is_official && l.is_diaspora === true);
 
   const deleteAction = deletePlace.bind(null, id);
 
@@ -382,6 +387,16 @@ export default async function PlaceDetailPage({ params }: Props) {
                   <span className="ml-1.5 text-muted-foreground font-normal">({diasporaLangs.length})</span>
                 </h3>
                 <LanguageTable langs={diasporaLangs} />
+              </div>
+            )}
+
+            {signedLangs.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium text-ink mb-2">
+                  Signed languages
+                  <span className="ml-1.5 text-muted-foreground font-normal">({signedLangs.length})</span>
+                </h3>
+                <LanguageTable langs={signedLangs} />
               </div>
             )}
           </div>
