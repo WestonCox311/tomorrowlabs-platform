@@ -141,6 +141,83 @@ export default async function EditLanguageModelPage({ params, searchParams }: Pr
           />
         </div>
 
+        {/* Evaluation metrics — relevant for STT (WER/CER) and MT (BLEU) */}
+        <div className="pt-2">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Evaluation metrics</p>
+          <div className="grid grid-cols-3 gap-3 mb-3">
+            <div>
+              <label className="block text-sm font-medium text-ink mb-1">WER %</label>
+              <input
+                name="wer"
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                defaultValue={model.wer ?? ''}
+                placeholder="e.g. 12.4"
+                className="w-full px-3 py-2 border border-border rounded-md text-sm bg-background text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-moss"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-ink mb-1">CER %</label>
+              <input
+                name="cer"
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                defaultValue={model.cer ?? ''}
+                placeholder="e.g. 5.1"
+                className="w-full px-3 py-2 border border-border rounded-md text-sm bg-background text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-moss"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-ink mb-1">BLEU</label>
+              <input
+                name="bleu_score"
+                type="number"
+                step="0.1"
+                min="0"
+                max="100"
+                defaultValue={model.bleu_score ?? ''}
+                placeholder="e.g. 32.5"
+                className="w-full px-3 py-2 border border-border rounded-md text-sm bg-background text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-moss"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-ink mb-1">Test dataset</label>
+              <input
+                name="eval_dataset"
+                defaultValue={model.eval_dataset ?? ''}
+                placeholder="e.g. CommonVoice 17 test"
+                className="w-full px-3 py-2 border border-border rounded-md text-sm bg-background text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-moss"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-ink mb-1">Parameter count</label>
+              <input
+                name="parameter_count"
+                type="number"
+                min="0"
+                defaultValue={model.parameter_count ?? ''}
+                placeholder="e.g. 1500000000"
+                className="w-full px-3 py-2 border border-border rounded-md text-sm bg-background text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-moss"
+              />
+            </div>
+          </div>
+          <div className="mt-3">
+            <label className="block text-sm font-medium text-ink mb-1">Eval notes</label>
+            <input
+              name="eval_notes"
+              defaultValue={model.eval_notes ?? ''}
+              placeholder="e.g. Zero-shot; fine-tuned on 10h; greedy decoding"
+              className="w-full px-3 py-2 border border-border rounded-md text-sm bg-background text-ink placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-moss"
+            />
+          </div>
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-ink mb-1">Notes</label>
           <textarea

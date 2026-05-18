@@ -12,6 +12,20 @@ function bool(formData: FormData, key: string): boolean {
   return formData.get(key) === 'true' || formData.get(key) === 'on';
 }
 
+function num(formData: FormData, key: string): number | null {
+  const val = (formData.get(key) as string)?.trim();
+  if (!val) return null;
+  const n = parseFloat(val);
+  return isNaN(n) ? null : n;
+}
+
+function bigint_(formData: FormData, key: string): number | null {
+  const val = (formData.get(key) as string)?.trim();
+  if (!val) return null;
+  const n = parseInt(val, 10);
+  return isNaN(n) ? null : n;
+}
+
 function parseFields(formData: FormData) {
   return {
     language_id: str(formData, 'language_id')!,
@@ -22,6 +36,12 @@ function parseFields(formData: FormData) {
     is_open_source: bool(formData, 'is_open_source'),
     license: str(formData, 'license'),
     source_url: str(formData, 'source_url'),
+    wer: num(formData, 'wer'),
+    cer: num(formData, 'cer'),
+    bleu_score: num(formData, 'bleu_score'),
+    eval_dataset: str(formData, 'eval_dataset'),
+    eval_notes: str(formData, 'eval_notes'),
+    parameter_count: bigint_(formData, 'parameter_count'),
     notes: str(formData, 'notes'),
     last_verified_at: str(formData, 'last_verified_at') ?? new Date().toISOString().split('T')[0],
     updated_at: new Date().toISOString(),

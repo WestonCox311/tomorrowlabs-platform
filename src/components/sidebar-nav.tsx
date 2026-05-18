@@ -12,6 +12,7 @@ const navSections = [
       { href: '/admin/organizations', label: 'Organizations' },
       { href: '/admin/communities', label: 'Communities' },
       { href: '/admin/tech-readiness', label: 'Tech Readiness' },
+      { href: '/admin/language-models', label: 'Models' },
     ],
   },
   {
