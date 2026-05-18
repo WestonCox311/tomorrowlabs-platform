@@ -7,13 +7,7 @@ import type { Database } from '@/lib/database.types';
 
 type TechQuality = Database['public']['Enums']['tech_quality_tier'];
 
-// Extended type — includes columns added by migration-020 not yet in generated types
 type ModelRow = Database['public']['Tables']['language_models']['Row'] & {
-  wer?: number | null;
-  cer?: number | null;
-  bleu_score?: number | null;
-  eval_dataset?: string | null;
-  parameter_count?: number | null;
   languages: { id: string; english_name: string; endonym: string | null } | null;
 };
 

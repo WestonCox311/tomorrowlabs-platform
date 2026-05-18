@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
       access_control_policies: {
@@ -2341,7 +2346,8 @@ export type Database = {
           estimated_speakers: number | null
           id: string
           is_diaspora_concentration: boolean | null
-          is_historical_origin: boolean | null
+          is_indigenous_language: boolean | null
+          is_official_language: boolean | null
           language_id: string
           notes: string | null
           region: string
@@ -2356,7 +2362,8 @@ export type Database = {
           estimated_speakers?: number | null
           id?: string
           is_diaspora_concentration?: boolean | null
-          is_historical_origin?: boolean | null
+          is_indigenous_language?: boolean | null
+          is_official_language?: boolean | null
           language_id: string
           notes?: string | null
           region: string
@@ -2371,7 +2378,8 @@ export type Database = {
           estimated_speakers?: number | null
           id?: string
           is_diaspora_concentration?: boolean | null
-          is_historical_origin?: boolean | null
+          is_indigenous_language?: boolean | null
+          is_official_language?: boolean | null
           language_id?: string
           notes?: string | null
           region?: string
@@ -2636,6 +2644,90 @@ export type Database = {
           },
         ]
       }
+      language_models: {
+        Row: {
+          bleu_score: number | null
+          cer: number | null
+          created_at: string | null
+          eval_dataset: string | null
+          eval_notes: string | null
+          id: string
+          is_open_source: boolean | null
+          language_id: string
+          last_verified_at: string | null
+          license: string | null
+          model_name: string
+          model_type: string
+          notes: string | null
+          parameter_count: number | null
+          provider: string
+          quality_tier: Database["public"]["Enums"]["tech_quality_tier"] | null
+          source_id: string | null
+          source_url: string | null
+          updated_at: string | null
+          wer: number | null
+        }
+        Insert: {
+          bleu_score?: number | null
+          cer?: number | null
+          created_at?: string | null
+          eval_dataset?: string | null
+          eval_notes?: string | null
+          id?: string
+          is_open_source?: boolean | null
+          language_id: string
+          last_verified_at?: string | null
+          license?: string | null
+          model_name: string
+          model_type: string
+          notes?: string | null
+          parameter_count?: number | null
+          provider: string
+          quality_tier?: Database["public"]["Enums"]["tech_quality_tier"] | null
+          source_id?: string | null
+          source_url?: string | null
+          updated_at?: string | null
+          wer?: number | null
+        }
+        Update: {
+          bleu_score?: number | null
+          cer?: number | null
+          created_at?: string | null
+          eval_dataset?: string | null
+          eval_notes?: string | null
+          id?: string
+          is_open_source?: boolean | null
+          language_id?: string
+          last_verified_at?: string | null
+          license?: string | null
+          model_name?: string
+          model_type?: string
+          notes?: string | null
+          parameter_count?: number | null
+          provider?: string
+          quality_tier?: Database["public"]["Enums"]["tech_quality_tier"] | null
+          source_id?: string | null
+          source_url?: string | null
+          updated_at?: string | null
+          wer?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "language_models_language_id_fkey"
+            columns: ["language_id"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "language_models_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       language_place_presence: {
         Row: {
           arrived_via_migration: boolean | null
@@ -2818,6 +2910,54 @@ export type Database = {
             columns: ["parent_language_id"]
             isOneToOne: false
             referencedRelation: "languages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      linguistic_features: {
+        Row: {
+          confidence: Database["public"]["Enums"]["confidence_level"]
+          created_at: string | null
+          feature_code: string
+          feature_name: string | null
+          feature_value: string
+          id: string
+          language_id: string
+          source_id: string
+        }
+        Insert: {
+          confidence?: Database["public"]["Enums"]["confidence_level"]
+          created_at?: string | null
+          feature_code: string
+          feature_name?: string | null
+          feature_value: string
+          id?: string
+          language_id: string
+          source_id: string
+        }
+        Update: {
+          confidence?: Database["public"]["Enums"]["confidence_level"]
+          created_at?: string | null
+          feature_code?: string
+          feature_name?: string | null
+          feature_value?: string
+          id?: string
+          language_id?: string
+          source_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "linguistic_features_language_id_fkey"
+            columns: ["language_id"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "linguistic_features_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
             referencedColumns: ["id"]
           },
         ]
@@ -5619,6 +5759,66 @@ export type Database = {
           },
           {
             foreignKeyName: "tech_readiness_history_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      text_corpora: {
+        Row: {
+          confidence: Database["public"]["Enums"]["confidence_level"]
+          corpus_name: string
+          created_at: string | null
+          hf_dataset_id: string | null
+          id: string
+          language_id: string
+          license: string | null
+          notes: string | null
+          sentence_count: number | null
+          source_id: string
+          task_type: string
+          url: string | null
+        }
+        Insert: {
+          confidence?: Database["public"]["Enums"]["confidence_level"]
+          corpus_name: string
+          created_at?: string | null
+          hf_dataset_id?: string | null
+          id?: string
+          language_id: string
+          license?: string | null
+          notes?: string | null
+          sentence_count?: number | null
+          source_id: string
+          task_type: string
+          url?: string | null
+        }
+        Update: {
+          confidence?: Database["public"]["Enums"]["confidence_level"]
+          corpus_name?: string
+          created_at?: string | null
+          hf_dataset_id?: string | null
+          id?: string
+          language_id?: string
+          license?: string | null
+          notes?: string | null
+          sentence_count?: number | null
+          source_id?: string
+          task_type?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "text_corpora_language_id_fkey"
+            columns: ["language_id"]
+            isOneToOne: false
+            referencedRelation: "languages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "text_corpora_source_id_fkey"
             columns: ["source_id"]
             isOneToOne: false
             referencedRelation: "sources"
