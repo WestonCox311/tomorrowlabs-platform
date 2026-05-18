@@ -20,6 +20,11 @@
     "seed:whisper": "tsx scripts/seed-whisper-coverage.ts",
     "seed:mms": "tsx scripts/seed-mms-coverage.ts",
     "seed:huggingface": "tsx scripts/seed-huggingface-models.ts",
+    "seed:geonames-admin1": "tsx scripts/seed-geonames-admin1.ts",
+    "seed:geonames-admin2": "tsx scripts/seed-geonames-admin2.ts",
+    "seed:worldbank-populations": "tsx scripts/seed-worldbank-populations.ts",
+    "seed:wikidata-populations": "tsx scripts/seed-wikidata-populations.ts",
+    "seed:wikidata-language-countries": "tsx scripts/seed-wikidata-language-countries.ts",
     "seed:all": "npm run seed:glottolog && npm run seed:geonames && npm run seed:endonyms",
     "types:generate": "supabase gen types typescript --project-id mufemokeeftjklqemqyc > src/lib/database.types.ts"
   },

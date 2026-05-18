@@ -47,14 +47,17 @@ export default async function LanguageDetailPage({ params }: Props) {
   const supabase = createClient();
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const lmQuery = (supabase as any)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const sb = supabase as any;
+
+  const lmQuery = sb
     .from('language_models')
     .select('id, model_name, provider, model_type, quality_tier, is_open_source, license, source_url, notes, last_verified_at')
     .eq('language_id', id)
     .order('model_type')
     .order('quality_tier');
 
-  const [langResult, babagigi, linkedCommunities, techResult, lmResult] = await Promise.all([
+  const [langResult, babagigi, linkedCommunities, techResult, lmResult, spResult, gcResult] = await Promise.all([
     supabase.from('languages').select('*').eq('id', id).single(),
     supabase
       .from('product_status')
@@ -72,6 +75,19 @@ export default async function LanguageDetailPage({ params }: Props) {
       .eq('language_id', id)
       .maybeSingle(),
     lmQuery,
+    // Speaker populations (global + per-country)
+    sb
+      .from('speaker_populations')
+      .select('country_code, context, l1_speakers, l2_speakers, heritage_speakers, data_year, confidence, notes')
+      .eq('language_id', id)
+      .order('l1_speakers', { ascending: false, nullsFirst: false }),
+    // Geographic concentrations (where it's spoken)
+    sb
+      .from('geographic_concentrations')
+      .select('country_code, region, region_type, estimated_speakers, is_diaspora_concentration, data_year, confidence')
+      .eq('language_id', id)
+      .order('estimated_speakers', { ascending: false, nullsFirst: false })
+      .limit(100),
   ]);
 
   if (!langResult.data) notFound();
@@ -84,6 +100,33 @@ export default async function LanguageDetailPage({ params }: Props) {
   const tr = techResult.data;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const languageModels: any[] = lmResult.data ?? [];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const speakerPops: any[] = spResult.data ?? [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const geoCons: any[] = gcResult.data ?? [];
+
+  const globalRow = speakerPops.find((r) => r.country_code === 'GLOBAL');
+  const countrySpRows = speakerPops.filter((r) => r.country_code !== 'GLOBAL');
+
+  // Batch-resolve all unique country codes → place { id, english_name }
+  const allCountryCodes = Array.from(new Set([
+    ...countrySpRows.map((r) => r.country_code as string),
+    ...geoCons.map((r) => r.country_code as string),
+  ])).filter(Boolean);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const placeByCode = new Map<string, { id: string; english_name: string }>();
+  if (allCountryCodes.length > 0) {
+    const { data: placesData } = await sb
+      .from('places')
+      .select('id, english_name, iso_3166_1_alpha2')
+      .in('iso_3166_1_alpha2', allCountryCodes)
+      .eq('granularity', 'country');
+    for (const p of placesData ?? []) {
+      if (p.iso_3166_1_alpha2) placeByCode.set(p.iso_3166_1_alpha2, { id: p.id, english_name: p.english_name });
+    }
+  }
 
   const TIER_COLORS: Record<string, string> = {
     production: 'bg-green-100 text-green-800',
@@ -153,6 +196,138 @@ export default async function LanguageDetailPage({ params }: Props) {
           </div>
         ))}
       </dl>
+
+      {/* ── Speaker Population ──────────────────────────────────────────── */}
+      <section className="mt-6 border border-border rounded-lg overflow-hidden">
+        <div className="px-4 py-2 bg-muted/30 border-b border-border">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Speaker Population</h2>
+        </div>
+
+        {globalRow ? (
+          <div className="px-4 py-3 border-b border-border">
+            <p className="text-sm text-ink">
+              <span className="font-semibold text-base">
+                ~{(globalRow.l1_speakers as number).toLocaleString()}
+              </span>
+              {' '}speakers globally
+              {globalRow.data_year && (
+                <span className="text-xs text-muted-foreground ml-1">({globalRow.data_year})</span>
+              )}
+              <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-muted text-muted-foreground">
+                {globalRow.confidence ?? 'low'} confidence
+              </span>
+            </p>
+          </div>
+        ) : speakerPops.length === 0 ? null : null}
+
+        {countrySpRows.length > 0 ? (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/20">
+                <th className="text-left px-4 py-2 font-medium text-muted-foreground">Country</th>
+                <th className="text-right px-4 py-2 font-medium text-muted-foreground">L1 speakers</th>
+                <th className="text-right px-4 py-2 font-medium text-muted-foreground">L2</th>
+                <th className="text-right px-4 py-2 font-medium text-muted-foreground">Heritage</th>
+                <th className="text-left px-4 py-2 font-medium text-muted-foreground">Year</th>
+                <th className="text-left px-4 py-2 font-medium text-muted-foreground">Conf.</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {countrySpRows.map((row) => {
+                const place = placeByCode.get(row.country_code);
+                return (
+                  <tr key={row.country_code} className="hover:bg-muted/20 transition-colors">
+                    <td className="px-4 py-2 font-mono text-xs">
+                      {place ? (
+                        <Link href={`/admin/places/${place.id}`} className="text-moss hover:underline">
+                          {row.country_code}
+                        </Link>
+                      ) : row.country_code}
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">
+                      {row.l1_speakers != null ? (row.l1_speakers as number).toLocaleString() : '—'}
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">
+                      {row.l2_speakers != null ? (row.l2_speakers as number).toLocaleString() : '—'}
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">
+                      {row.heritage_speakers != null ? (row.heritage_speakers as number).toLocaleString() : '—'}
+                    </td>
+                    <td className="px-4 py-2 text-xs text-muted-foreground">{row.data_year ?? '—'}</td>
+                    <td className="px-4 py-2">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs bg-muted text-muted-foreground">
+                        {row.confidence ?? '—'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : (
+          <div className="px-4 py-3 text-sm text-muted-foreground italic">
+            {globalRow
+              ? 'No per-country breakdown available.'
+              : 'No speaker population data. Run npm run seed:wikidata-language-countries to populate.'}
+          </div>
+        )}
+      </section>
+
+      {/* ── Where it's spoken ───────────────────────────────────────────── */}
+      <section className="mt-4 border border-border rounded-lg overflow-hidden">
+        <div className="px-4 py-2 bg-muted/30 border-b border-border">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Where it&apos;s spoken
+            {geoCons.length > 0 && (
+              <span className="ml-1 normal-case font-normal">({geoCons.length})</span>
+            )}
+          </h2>
+        </div>
+
+        {geoCons.length > 0 ? (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/20">
+                <th className="text-left px-4 py-2 font-medium text-muted-foreground">Country</th>
+                <th className="text-left px-4 py-2 font-medium text-muted-foreground">Region type</th>
+                <th className="text-right px-4 py-2 font-medium text-muted-foreground">Est. speakers</th>
+                <th className="text-left px-4 py-2 font-medium text-muted-foreground">Diaspora?</th>
+                <th className="text-left px-4 py-2 font-medium text-muted-foreground">Year</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {geoCons.map((row) => {
+                const place = placeByCode.get(row.country_code);
+                return (
+                  <tr key={`${row.country_code}-${row.region}`} className="hover:bg-muted/20 transition-colors">
+                    <td className="px-4 py-2 font-mono text-xs">
+                      {place ? (
+                        <Link href={`/admin/places/${place.id}`} className="text-moss hover:underline">
+                          {row.country_code}
+                        </Link>
+                      ) : row.country_code}
+                    </td>
+                    <td className="px-4 py-2 text-xs text-muted-foreground">{row.region_type ?? row.region ?? '—'}</td>
+                    <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">
+                      {row.estimated_speakers != null ? (row.estimated_speakers as number).toLocaleString() : '—'}
+                    </td>
+                    <td className="px-4 py-2 text-xs text-muted-foreground">
+                      {row.is_diaspora_concentration == null ? '—' : row.is_diaspora_concentration ? 'Yes' : 'No'}
+                    </td>
+                    <td className="px-4 py-2 text-xs text-muted-foreground">{row.data_year ?? '—'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        ) : (
+          <div className="px-4 py-3 text-sm text-muted-foreground italic">
+            {countrySpRows.length > 0
+              ? 'Country-level data available in Speaker Population section above.'
+              : 'No geographic distribution data. Run npm run seed:wikidata-language-countries to populate.'}
+          </div>
+        )}
+      </section>
 
       {/* Babagigi pipeline section */}
       {ps && (
