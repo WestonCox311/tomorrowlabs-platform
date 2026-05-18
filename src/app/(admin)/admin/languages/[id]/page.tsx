@@ -236,7 +236,7 @@ export default async function LanguageDetailPage({ params }: Props) {
               {countrySpRows.map((row) => {
                 const place = placeByCode.get(row.country_code);
                 return (
-                  <tr key={row.country_code} className="hover:bg-muted/20 transition-colors">
+                  <tr key={row.id} className="hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-2 font-mono text-xs">
                       {place ? (
                         <Link href={`/admin/places/${place.id}`} className="text-moss hover:underline">
