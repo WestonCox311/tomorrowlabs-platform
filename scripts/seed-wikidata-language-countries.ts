@@ -8,9 +8,17 @@
  *   One row per language with a known global speaker count.
  *
  * Phase B — geographic_concentrations
- *   P1394 (Glottolog) → P17 (country) + optional P1098 with P17 qualifier
- *   One row per language × country. Populates the Languages section on
- *   every country's place detail page.
+ *   P1394 → { P17 (country on language) UNION P2936 (language used on country) }
+ *   Using both directions gives far broader coverage than P17 alone:
+ *   P17 captures where languages self-report their country; P2936 captures
+ *   what countries report as languages spoken there (often includes diaspora
+ *   communities that Wikidata language editors haven't reflected on P17).
+ *
+ * Phase C — native country detection for diaspora flagging
+ *   P1394 → P37 reverse (countries listing this as official language)
+ *   A language in its official country → is_diaspora_concentration = false
+ *   A language in any other country   → is_diaspora_concentration = true
+ *   No official country found          → defaults to false (can't determine)
  *
  * Reuses the same SPARQL infrastructure as seed-wikidata-enrichment.ts:
  * same endpoint, User-Agent, batch size (100), 3s delay, exponential backoff.
@@ -120,7 +128,7 @@ GROUP BY ?glottolog`,
   return map;
 }
 
-// ── Phase B: Country distribution (P17) ──────────────────────────────────────
+// ── Phase B: Country distribution (P17 ∪ P2936) ──────────────────────────────
 
 interface CountryEntry {
   countryCode: string;
@@ -134,7 +142,11 @@ async function fetchCountryDistribution(glottocodes: string[]): Promise<Map<stri
 SELECT ?glottolog ?countryCode (SAMPLE(?speakersRaw) AS ?speakers) WHERE {
   VALUES ?glottolog { ${vals} }
   ?lang wdt:P1394 ?glottolog .
-  ?lang wdt:P17 ?country .
+  {
+    ?lang wdt:P17 ?country .
+  } UNION {
+    ?country wdt:P2936 ?lang .
+  }
   ?country wdt:P297 ?countryCode .
   OPTIONAL {
     ?lang p:P1098 ?stmt .
@@ -160,6 +172,35 @@ GROUP BY ?glottolog ?countryCode`,
       countryCode,
       speakers: speakers != null && speakers > 0 && !isNaN(speakers) ? speakers : null,
     });
+  }
+  return map;
+}
+
+// ── Phase C: Native country detection (P37 reverse) ──────────────────────────
+// Finds countries where a language is listed as an official language (P37).
+// These are "native" countries — everywhere else the language appears is diaspora.
+
+async function fetchNativeCountries(glottocodes: string[]): Promise<Map<string, Set<string>>> {
+  const rows = await batchedQuery<Binding>(
+    glottocodes,
+    (vals) => `
+SELECT ?glottolog ?countryCode WHERE {
+  VALUES ?glottolog { ${vals} }
+  ?lang wdt:P1394 ?glottolog .
+  ?country wdt:P37 ?lang .
+  ?country wdt:P297 ?countryCode .
+}
+GROUP BY ?glottolog ?countryCode`,
+    'NativeCountries',
+  );
+
+  const map = new Map<string, Set<string>>();
+  for (const b of rows) {
+    const code = b.glottolog?.value;
+    const countryCode = b.countryCode?.value?.toUpperCase();
+    if (!code || !countryCode || countryCode.length !== 2) continue;
+    if (!map.has(code)) map.set(code, new Set());
+    map.get(code)!.add(countryCode);
   }
   return map;
 }
@@ -193,7 +234,7 @@ async function main() {
 
   const glottocodes = Array.from(glottoToId.keys());
   const totalBatches = Math.ceil(glottocodes.length / SPARQL_BATCH);
-  console.log(`\n~${totalBatches} batches per phase × ~${BATCH_DELAY_MS / 1000}s = ~${Math.round((totalBatches * BATCH_DELAY_MS) / 60000)} min per phase\n`);
+  console.log(`\n~${totalBatches} batches per phase × ~${BATCH_DELAY_MS / 1000}s = ~${Math.round((totalBatches * BATCH_DELAY_MS) / 60000)} min per phase (3 phases total)\n`);
 
   // ── Phase A: Global speaker counts ─────────────────────────────────────────
   console.log('Phase A: Fetching global speaker counts from Wikidata…');
@@ -228,23 +269,31 @@ async function main() {
   }
   console.log(`  ✓ ${spInserted} rows inserted into speaker_populations`);
 
-  // ── Phase B: Country distribution ──────────────────────────────────────────
-  console.log('\nPhase B: Fetching country distribution from Wikidata…');
+  // ── Phase B+C: Country distribution + diaspora detection ───────────────────
+  console.log('\nPhase B: Fetching country distribution from Wikidata (P17 ∪ P2936)…');
   const countryMap = await fetchCountryDistribution(glottocodes);
   console.log(`  Found country entries for ${countryMap.size} languages`);
+
+  console.log('\nPhase C: Fetching native countries (P37 official language) for diaspora flags…');
+  const nativeCountriesMap = await fetchNativeCountries(glottocodes);
+  console.log(`  Found official-language data for ${nativeCountriesMap.size} languages`);
 
   const gcRows: object[] = [];
   for (const [glottocode, entries] of countryMap) {
     const languageId = glottoToId.get(glottocode);
     if (!languageId) continue;
+    const nativeSet = nativeCountriesMap.get(glottocode);
     for (const { countryCode, speakers } of entries) {
+      // If we have P37 data for this language, anything outside its official countries is diaspora.
+      // If no P37 data exists (language has no official country), default to false.
+      const isDiaspora = nativeSet && nativeSet.size > 0 ? !nativeSet.has(countryCode) : false;
       gcRows.push({
         language_id: languageId,
         country_code: countryCode,
         region: 'national',
         region_type: 'country',
         estimated_speakers: speakers,
-        is_diaspora_concentration: false,
+        is_diaspora_concentration: isDiaspora,
         source_id: WIKIDATA_SOURCE_ID,
         confidence: 'low',
       });
