@@ -315,7 +315,7 @@ export default async function ReadinessDashboardPage({ searchParams }: Props) {
                 <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <SortHeader href={sortHref('us_speakers')} label="US speakers" isActive={sortCol === 'us_speakers'} isAsc={sortDir === 'asc'} />
-                    <InfoTooltip text="Estimated L1 speakers in the United States." side="top" />
+                    <InfoTooltip text="Estimated speakers in the United States (ACS 2022). English reflects 'English-only at home' speakers — bilinguals counted under their other language, so the true total is higher. Chinese and Arabic figures cover multiple varieties; confidence is medium." side="top" />
                   </span>
                 </th>
                 <th className="text-left px-4 py-2 text-xs font-medium text-muted-foreground">

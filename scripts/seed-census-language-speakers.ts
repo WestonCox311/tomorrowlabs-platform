@@ -42,6 +42,8 @@ interface LangDef {
   label: string;
   glottocode?: string;   // preferred lookup
   englishName?: string;  // fallback lookup against languages.english_name
+  confidence?: 'high' | 'medium' | 'low' | 'estimated';  // override default 'high'
+  notes?: string;        // data quality or attribution caveat stored on the row
 }
 
 // B16001_002E: "Speak only English at home" — a lower-bound count for English.
@@ -78,17 +80,32 @@ const LANG_DEFS: LangDef[] = [
   { varId: 'B16001_066E', label: 'Telugu',               glottocode: 'telu1262' },
   { varId: 'B16001_069E', label: 'Tamil',                glottocode: 'tami1289' },
   // B16001_072E: "Malayalam, Kannada, or other Dravidian languages" — skip (aggregate)
-  { varId: 'B16001_075E', label: 'Chinese',              englishName: 'Mandarin Chinese' },
+  // ACS "Chinese" covers Mandarin, Cantonese, Min, Wu, Hakka, and other Chinese varieties.
+  // Mapped to Mandarin Chinese as the plurality variety (~70% est.). The Babagigi roadmap
+  // treats Cantonese (Wave 2) as a separate community — these figures cannot be separated
+  // from ACS alone. Confidence downgraded to 'medium' to reflect attribution imprecision.
+  { varId: 'B16001_075E', label: 'Chinese',              englishName: 'Mandarin Chinese',
+    confidence: 'medium',
+    notes: "ACS 'Chinese' category covers Mandarin, Cantonese, and other Chinese varieties. Mandarin is the plurality (~70% est.); Cantonese (~20% est.) is not separately tracked in ACS." },
   { varId: 'B16001_078E', label: 'Japanese',             englishName: 'Japanese' },
   { varId: 'B16001_081E', label: 'Korean',               glottocode: 'kore1280' },
-  { varId: 'B16001_084E', label: 'Hmong',                englishName: 'Hmong' },
+  // ACS "Hmong" covers White Hmong (Hmong Daw) and Green Hmong (Mong Leng) — two distinct
+  // languages. No ACS data separates them. Community-sourced data needed to split counts.
+  { varId: 'B16001_084E', label: 'Hmong',                englishName: 'Hmong',
+    confidence: 'low',
+    notes: "ACS 'Hmong' covers primarily White Hmong (Hmong Daw) and Green Hmong (Mong Leng) — two distinct languages. Mapped to a single record as proxy; variety split requires community-sourced data." },
   { varId: 'B16001_087E', label: 'Vietnamese',           glottocode: 'viet1252' },
   { varId: 'B16001_090E', label: 'Khmer',                glottocode: 'cent1989', englishName: 'Central Khmer' },
   // B16001_093E: "Thai, Lao, or other Tai-Kadai languages" — skip (aggregate)
   // B16001_096E: "Other languages of Asia" — skip (aggregate)
   { varId: 'B16001_099E', label: 'Tagalog',              glottocode: 'taga1270' },
   // B16001_102E: "Ilocano, Samoan, Hawaiian, or other Austronesian languages" — skip (aggregate)
-  { varId: 'B16001_105E', label: 'Arabic',               glottocode: 'stan1318', englishName: 'Standard Arabic' },
+  // ACS "Arabic" covers a diverse speech community of Egyptian, Levantine, Gulf, Moroccan,
+  // Yemeni, and other spoken Arabic varieties. Modern Standard Arabic (MSA/stan1318) is used
+  // as a lookup proxy — nobody speaks MSA as a home language. Confidence 'medium'.
+  { varId: 'B16001_105E', label: 'Arabic',               glottocode: 'stan1318', englishName: 'Standard Arabic',
+    confidence: 'medium',
+    notes: "ACS 'Arabic' covers spoken varieties (Egyptian, Levantine, Gulf, Moroccan, etc.). Modern Standard Arabic used as a database proxy identifier; it is not a home-spoken language." },
   { varId: 'B16001_108E', label: 'Hebrew',               glottocode: 'hebr1245', englishName: 'Modern Hebrew' },
   // B16001_111E: "Amharic, Somali, or other Afro-Asiatic languages" — skip (aggregate)
   // B16001_114E: "Yoruba, Twi, Igbo, or other languages of Western Africa" — skip (aggregate)
@@ -326,6 +343,7 @@ async function main() {
     // Use P37 native-country data if available; fall back to inherited Wikidata flags.
     const nativeSet = def.glottocode ? p37Map.get(def.glottocode) : undefined;
     const isDiaspora = nativeSet && nativeSet.size > 0 ? !nativeSet.has('US') : flags.isDiaspora;
+    const rowConfidence = def.confidence ?? 'high';
     gcRows.push({
       language_id: languageId,
       country_code: 'US',
@@ -336,7 +354,7 @@ async function main() {
       is_official_language: flags.isOfficial,
       is_indigenous_language: flags.isIndigenous,
       data_year: DATA_YEAR,
-      confidence: 'high',
+      confidence: rowConfidence,
       source_id: ACS_SOURCE_ID,
     });
     if (speakers != null) {
@@ -346,9 +364,9 @@ async function main() {
         context: 'home',
         l1_speakers: speakers,
         data_year: DATA_YEAR,
-        confidence: 'high',
+        confidence: rowConfidence,
         source_id: ACS_SOURCE_ID,
-        notes: 'ACS 5-year 2022: population 5+ speaking language at home',
+        notes: def.notes ?? 'ACS 5-year 2022: population 5+ speaking language at home',
       });
     }
   }
@@ -388,7 +406,7 @@ async function main() {
         is_official_language: flags.isOfficial,
         is_indigenous_language: flags.isIndigenous,
         data_year: DATA_YEAR,
-        confidence: 'high',
+        confidence: def.confidence ?? 'high',
         source_id: ACS_SOURCE_ID,
       });
     }
