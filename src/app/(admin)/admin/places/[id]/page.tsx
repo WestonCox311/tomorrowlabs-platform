@@ -179,7 +179,7 @@ export default async function PlaceDetailPage({ params }: Props) {
 
   const spokenLangs     = languages.filter(l => !l.is_signed);
   const signedLangs     = languages.filter(l => l.is_signed);
-  const topLangs        = spokenLangs.slice(0, 10);
+  const topLangs        = spokenLangs.filter(l => l.estimated_speakers != null).slice(0, 10);
   const topLangIds      = new Set(topLangs.map(l => l.id));
   const indigenousLangs = spokenLangs.filter(l => !topLangIds.has(l.id) && !l.is_diaspora);
   const diasporaLangs   = spokenLangs.filter(l => !topLangIds.has(l.id) && l.is_diaspora === true);
