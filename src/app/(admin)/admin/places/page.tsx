@@ -19,7 +19,7 @@ const STATUSES: Database['public']['Enums']['place_status'][] = [
   'active', 'historical', 'disputed', 'depopulated',
 ];
 
-const ALLOWED_SORT = ['english_name', 'endonym', 'granularity', 'iso_3166_1_alpha2', 'status'] as const;
+const ALLOWED_SORT = ['english_name', 'endonym', 'granularity', 'iso_3166_1_alpha2', 'status', 'population'] as const;
 
 // Country view row limit (all ~252 fit easily; cap at 300 as a safety net)
 const COUNTRY_LIMIT = 300;
@@ -46,10 +46,14 @@ export default async function PlacesPage({ searchParams }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any;
 
+  // Population sort is done in-memory after fetching (it lives in a separate table).
+  // Fall back to english_name for the DB query when population sort is requested.
+  const dbSortCol = sortCol === 'population' ? 'english_name' : sortCol;
+
   let query = sb
     .from('places')
     .select('id, english_name, endonym, granularity, status, iso_3166_1_alpha2, parent_place_id')
-    .order(sortCol, { ascending: sortDir === 'asc', nullsFirst: false });
+    .order(dbSortCol, { ascending: sortDir === 'asc', nullsFirst: false });
 
   if (q) {
     query = query.or(`english_name.ilike.%${q}%,geonames_id.ilike.%${q}%,iso_3166_1_alpha2.ilike.%${q}%,iso_3166_1_alpha3.ilike.%${q}%`);
@@ -94,6 +98,15 @@ export default async function PlacesPage({ searchParams }: Props) {
       }
     }
   }
+
+  // Sort by population in memory (data already fetched; works for all row counts here)
+  const sortedPlaces = sortCol === 'population'
+    ? [...(places ?? [])].sort((a, b) => {
+        const pa = popMap[a.id]?.total ?? -1;
+        const pb = popMap[b.id]?.total ?? -1;
+        return sortDir === 'asc' ? pa - pb : pb - pa;
+      })
+    : (places ?? []);
 
   const hasFilters = q || granularity || status;
   const isLimited = !isCountryView && (places?.length ?? 0) >= SEARCH_LIMIT;
@@ -173,7 +186,9 @@ export default async function PlacesPage({ searchParams }: Props) {
                 </th>
               )}
               <th className="text-right px-4 py-3 font-medium text-muted-foreground">
-                Population
+                <div className="flex justify-end">
+                  <SortHeader href={sortHref('population')} label="Population" isActive={sortCol === 'population'} isAsc={sortDir === 'asc'} />
+                </div>
               </th>
               <th className="text-left px-4 py-3 font-medium text-muted-foreground">
                 <span className="flex items-center gap-1">
@@ -190,8 +205,8 @@ export default async function PlacesPage({ searchParams }: Props) {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {places && places.length > 0 ? (
-              places.map((place) => {
+            {sortedPlaces.length > 0 ? (
+              sortedPlaces.map((place) => {
                 const pop = popMap[place.id];
                 return (
                   <ClickableRow key={place.id} href={`/admin/places/${place.id}`}>
@@ -240,12 +255,10 @@ export default async function PlacesPage({ searchParams }: Props) {
         </table>
       </div>
 
-      {places && (
-        <p className="mt-3 text-xs text-muted-foreground">
-          {places.length} place{places.length !== 1 ? 's' : ''}
-          {isLimited && ` (capped at ${SEARCH_LIMIT} — narrow your search to see more)`}
-        </p>
-      )}
+      <p className="mt-3 text-xs text-muted-foreground">
+        {sortedPlaces.length} place{sortedPlaces.length !== 1 ? 's' : ''}
+        {isLimited && ` (capped at ${SEARCH_LIMIT} — narrow your search to see more)`}
+      </p>
     </div>
   );
 }
