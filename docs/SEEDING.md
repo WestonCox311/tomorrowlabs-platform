@@ -45,6 +45,12 @@ npm run seed:wikidata                 # Full Wikidata enrichment: speaker counts
                                       # writing systems, UNESCO vitality, QIDs.
 npm run seed:wikidata-language-countries  # Language × country distribution + diaspora
                                           # + indigenous flags. ~25 min (5 phases).
+npm run seed:language-hierarchy           # ISO 639-3 macrolanguage parent–child wiring.
+                                          # Sets parent_language_id on member languages.
+                                          # e.g. Cantonese → Chinese macrolanguage.
+npm run seed:grambank                     # 195 typological features × ~2,467 languages
+                                          # into linguistic_features. ~5–10 min.
+                                          # Requires migration-018 to be applied first.
 ```
 
 ### Layer 4 — Technology readiness (~5 min)
@@ -90,6 +96,7 @@ Exception: `seed:glottolog` and `seed:geonames` use upsert on natural keys — a
 | `vitality_assessments` | ~8,000–12,000 |
 | `orthographies` | ~3,000–5,000 |
 | `audio_corpora` | ~130–150 |
+| `linguistic_features` | ~360,000–443,000 (Grambank) |
 | `tech_readiness` | ~8,600 (one per language) |
 
 ---

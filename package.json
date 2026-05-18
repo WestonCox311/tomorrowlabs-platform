@@ -26,8 +26,10 @@
     "seed:wikidata-populations": "tsx scripts/seed-wikidata-populations.ts",
     "seed:wikidata-language-countries": "tsx scripts/seed-wikidata-language-countries.ts",
     "seed:census-language-speakers": "tsx scripts/seed-census-language-speakers.ts",
+    "seed:language-hierarchy": "tsx scripts/seed-language-hierarchy.ts",
+    "seed:grambank": "tsx scripts/seed-grambank.ts",
     "seed:base": "npm run seed:glottolog && npm run seed:geonames && npm run seed:endonyms",
-    "seed:full": "npm run seed:glottolog && npm run seed:geonames && npm run seed:geonames-admin1 && npm run seed:geonames-admin2 && npm run seed:endonyms && npm run seed:iso639 && npm run seed:wals && npm run seed:glottolog-endangerment && npm run seed:worldbank-populations && npm run seed:wikidata-populations && npm run seed:wikidata && npm run seed:wikidata-language-countries && npm run seed:common-voice && npm run seed:whisper && npm run seed:mms && npm run seed:huggingface && npm run seed:tech-readiness && npm run seed:census-language-speakers",
+    "seed:full": "npm run seed:glottolog && npm run seed:geonames && npm run seed:geonames-admin1 && npm run seed:geonames-admin2 && npm run seed:endonyms && npm run seed:iso639 && npm run seed:wals && npm run seed:glottolog-endangerment && npm run seed:worldbank-populations && npm run seed:wikidata-populations && npm run seed:wikidata && npm run seed:wikidata-language-countries && npm run seed:language-hierarchy && npm run seed:grambank && npm run seed:common-voice && npm run seed:whisper && npm run seed:mms && npm run seed:huggingface && npm run seed:tech-readiness && npm run seed:census-language-speakers",
     "types:generate": "supabase gen types typescript --project-id mufemokeeftjklqemqyc > src/lib/database.types.ts"
   },
   "dependencies": {
