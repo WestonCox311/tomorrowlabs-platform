@@ -51,6 +51,10 @@ npm run seed:language-hierarchy           # ISO 639-3 macrolanguage parent–chi
 npm run seed:grambank                     # 195 typological features × ~2,467 languages
                                           # into linguistic_features. ~5–10 min.
                                           # Requires migration-018 to be applied first.
+npm run seed:masakhane                    # Masakhane NLP benchmark coverage for ~40
+                                          # African languages (NER, POS, MT, sentiment,
+                                          # QA, LLM benchmarks) into text_corpora. ~1–2 min.
+                                          # Requires migration-019 to be applied first.
 ```
 
 ### Layer 4 — Technology readiness (~5 min)
@@ -96,6 +100,7 @@ Exception: `seed:glottolog` and `seed:geonames` use upsert on natural keys — a
 | `vitality_assessments` | ~8,000–12,000 |
 | `orthographies` | ~3,000–5,000 |
 | `audio_corpora` | ~130–150 |
+| `text_corpora` | ~400–600 (Masakhane: ~40 langs × ~12 datasets) |
 | `linguistic_features` | ~360,000–443,000 (Grambank) |
 | `tech_readiness` | ~8,600 (one per language) |
 
