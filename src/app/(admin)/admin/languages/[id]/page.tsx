@@ -46,7 +46,15 @@ export default async function LanguageDetailPage({ params }: Props) {
   const { id } = await params;
   const supabase = createClient();
 
-  const [langResult, babagigi, linkedCommunities, techResult] = await Promise.all([
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const lmQuery = (supabase as any)
+    .from('language_models')
+    .select('id, model_name, provider, model_type, quality_tier, is_open_source, license, source_url, notes, last_verified_at')
+    .eq('language_id', id)
+    .order('model_type')
+    .order('quality_tier');
+
+  const [langResult, babagigi, linkedCommunities, techResult, lmResult] = await Promise.all([
     supabase.from('languages').select('*').eq('id', id).single(),
     supabase
       .from('product_status')
@@ -63,6 +71,7 @@ export default async function LanguageDetailPage({ params }: Props) {
       .select('stt_quality_tier, tts_quality_tier, omnilingual_supported, omnilingual_cer, common_voice_hours_validated, ipa_pipeline_viable, notable_gaps, assessed_at')
       .eq('language_id', id)
       .maybeSingle(),
+    lmQuery,
   ]);
 
   if (!langResult.data) notFound();
@@ -73,6 +82,8 @@ export default async function LanguageDetailPage({ params }: Props) {
   const ps = babagigi.data;
   const communities = linkedCommunities.data ?? [];
   const tr = techResult.data;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const languageModels: any[] = lmResult.data ?? [];
 
   const TIER_COLORS: Record<string, string> = {
     production: 'bg-green-100 text-green-800',
@@ -249,6 +260,104 @@ export default async function LanguageDetailPage({ params }: Props) {
         ) : (
           <div className="px-4 py-3 text-sm text-muted-foreground italic">
             No tech readiness data recorded.
+          </div>
+        )}
+      </section>
+
+      {/* Language Models section */}
+      <section className="mt-4 border border-border rounded-lg overflow-hidden">
+        <div className="px-4 py-2 bg-muted/30 border-b border-border flex items-center justify-between">
+          <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Language Models
+            {languageModels.length > 0 && (
+              <span className="ml-1 normal-case font-normal">({languageModels.length})</span>
+            )}
+          </h2>
+          <Link
+            href={`/admin/language-models/new?language_id=${id}`}
+            className="text-xs text-moss hover:underline"
+          >
+            + Add
+          </Link>
+        </div>
+
+        {languageModels.length === 0 ? (
+          <div className="px-4 py-3 text-sm text-muted-foreground italic">
+            No model resources recorded. Run seed scripts or add manually.
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {/* Group by model_type */}
+            {(['stt', 'tts', 'translation', 'llm', 'g2p'] as const).map((type) => {
+              const group = languageModels.filter((m) => m.model_type === type);
+              if (group.length === 0) return null;
+              return (
+                <div key={type}>
+                  <div className="px-4 py-1.5 bg-muted/20">
+                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      {type === 'stt' ? 'Speech-to-Text' : type === 'tts' ? 'Text-to-Speech' : type === 'llm' ? 'LLM' : type === 'g2p' ? 'Grapheme-to-Phoneme' : 'Translation'}
+                    </span>
+                  </div>
+                  <ul className="divide-y divide-border">
+                    {group.map((m) => (
+                      <li key={m.id} className="flex items-start justify-between px-4 py-2.5 gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {m.source_url ? (
+                              <a
+                                href={m.source_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm font-medium text-moss hover:underline truncate"
+                              >
+                                {m.model_name}
+                              </a>
+                            ) : (
+                              <span className="text-sm font-medium text-ink">{m.model_name}</span>
+                            )}
+                            <span className="text-xs text-muted-foreground">{m.provider}</span>
+                            {m.quality_tier && (
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${TIER_COLORS[m.quality_tier] ?? 'bg-muted text-muted-foreground'}`}>
+                                {m.quality_tier}
+                              </span>
+                            )}
+                            {m.license && (
+                              <span className="text-xs font-mono text-muted-foreground">{m.license}</span>
+                            )}
+                            {m.is_open_source === false && (
+                              <span className="text-xs text-amber-700">proprietary</span>
+                            )}
+                          </div>
+                          {m.notes && (
+                            <p className="text-xs text-muted-foreground mt-0.5 truncate">{m.notes}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {m.last_verified_at && (
+                            <span className="text-xs font-mono text-muted-foreground hidden sm:block">
+                              {m.last_verified_at}
+                            </span>
+                          )}
+                          <Link
+                            href={`/admin/language-models/${m.id}/edit`}
+                            className="text-xs text-muted-foreground hover:text-ink transition-colors"
+                          >
+                            Edit
+                          </Link>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+            {/* Catch-all for any other types */}
+            {languageModels.filter((m) => !['stt', 'tts', 'translation', 'llm', 'g2p'].includes(m.model_type)).map((m) => (
+              <li key={m.id} className="flex items-center justify-between px-4 py-2.5">
+                <span className="text-sm text-ink">{m.model_name}</span>
+                <Link href={`/admin/language-models/${m.id}/edit`} className="text-xs text-muted-foreground hover:text-ink">Edit</Link>
+              </li>
+            ))}
           </div>
         )}
       </section>
