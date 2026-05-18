@@ -51,20 +51,20 @@ const LANG_DEFS: LangDef[] = [
   { varId: 'B16001_012E', label: 'Italian',              englishName: 'Italian' },
   { varId: 'B16001_015E', label: 'Portuguese',           englishName: 'Portuguese' },
   { varId: 'B16001_018E', label: 'German',               englishName: 'German' },
-  { varId: 'B16001_021E', label: 'Yiddish',              englishName: 'Yiddish' },
+  { varId: 'B16001_021E', label: 'Yiddish',              glottocode: 'east2295', englishName: 'Eastern Yiddish' },
   // B16001_024E: Other West Germanic — skip (aggregate)
   // B16001_027E: Scandinavian — skip (aggregate)
-  { varId: 'B16001_030E', label: 'Greek',                englishName: 'Greek' },
+  { varId: 'B16001_030E', label: 'Greek',                glottocode: 'mode1248', englishName: 'Modern Greek' },
   { varId: 'B16001_033E', label: 'Russian',              glottocode: 'russ1263' },
   { varId: 'B16001_036E', label: 'Polish',               englishName: 'Polish' },
   // B16001_039E: Serbo-Croatian — skip (aggregate)
   { varId: 'B16001_042E', label: 'Ukrainian',            englishName: 'Ukrainian' },
-  { varId: 'B16001_045E', label: 'Armenian',             englishName: 'Armenian' },
-  { varId: 'B16001_048E', label: 'Persian',              englishName: 'Persian' },
+  { varId: 'B16001_045E', label: 'Armenian',             glottocode: 'nucl1235', englishName: 'Eastern Armenian' },
+  { varId: 'B16001_048E', label: 'Persian',              glottocode: 'west2369', englishName: 'Western Farsi' },
   { varId: 'B16001_051E', label: 'Gujarati',             glottocode: 'guja1252' },
   { varId: 'B16001_054E', label: 'Hindi',                glottocode: 'hind1269' },
   { varId: 'B16001_057E', label: 'Urdu',                 glottocode: 'urdu1245' },
-  { varId: 'B16001_060E', label: 'Punjabi',              englishName: 'Punjabi' },
+  { varId: 'B16001_060E', label: 'Punjabi',              glottocode: 'panj1256', englishName: 'Eastern Panjabi' },
   { varId: 'B16001_063E', label: 'Bengali',              glottocode: 'beng1280' },
   // B16001_066E: Nepali, Marathi, or other Indic — skip (aggregate)
   { varId: 'B16001_069E', label: 'Telugu',               glottocode: 'telu1262' },
@@ -73,7 +73,7 @@ const LANG_DEFS: LangDef[] = [
   { varId: 'B16001_078E', label: 'Sinhala',              englishName: 'Sinhala' },
   // B16001_081E: Other Indo-European — skip (aggregate)
   { varId: 'B16001_084E', label: 'Vietnamese',           glottocode: 'viet1252' },
-  { varId: 'B16001_087E', label: 'Khmer',                glottocode: 'khme1253' },
+  { varId: 'B16001_087E', label: 'Khmer',                glottocode: 'cent1989', englishName: 'Central Khmer' },
   { varId: 'B16001_090E', label: 'Hmong',                englishName: 'Hmong' },
   // B16001_093E: Thai, Lao, or other Tai-Kadai — skip (aggregate)
   { varId: 'B16001_096E', label: 'Japanese',             englishName: 'Japanese' },
@@ -81,8 +81,8 @@ const LANG_DEFS: LangDef[] = [
   { varId: 'B16001_102E', label: 'Chinese',              englishName: 'Mandarin Chinese' },
   { varId: 'B16001_105E', label: 'Tagalog',              glottocode: 'taga1270' },
   // B16001_108E: Ilocano, Samoan, Hawaiian, or other Austronesian — skip (aggregate)
-  { varId: 'B16001_111E', label: 'Arabic',               englishName: 'Arabic' },
-  { varId: 'B16001_114E', label: 'Hebrew',               englishName: 'Hebrew' },
+  { varId: 'B16001_111E', label: 'Arabic',               glottocode: 'stan1318', englishName: 'Standard Arabic' },
+  { varId: 'B16001_114E', label: 'Hebrew',               glottocode: 'hebr1245', englishName: 'Modern Hebrew' },
   // B16001_117E: Amharic, Somali, or other Afro-Asiatic — skip (aggregate)
   // B16001_120E: Yoruba, Twi, Igbo, or other West Africa — skip (aggregate)
   // B16001_123E: Swahili or other Bantu — skip (aggregate)
@@ -148,9 +148,10 @@ async function main() {
   const sb = supabase as any;
   await sb.from('sources').upsert({
     id: ACS_SOURCE_ID,
-    source_type: 'government_census',
+    type: 'census',
     name: 'US Census Bureau — American Community Survey 5-Year Estimates',
     url: 'https://data.census.gov/table/ACSDT5Y2022.B16001',
+    reliability_rating: 'high',
     notes: 'Table B16001: Language Spoken at Home by Ability to Speak English, pop. 5 years and over. ACS 2022 5-year estimates (2018–2022).',
   }, { onConflict: 'id', ignoreDuplicates: false });
 
