@@ -55,6 +55,9 @@ npm run seed:masakhane                    # Masakhane NLP benchmark coverage for
                                           # African languages (NER, POS, MT, sentiment,
                                           # QA, LLM benchmarks) into text_corpora. ~1–2 min.
                                           # Requires migration-019 to be applied first.
+npm run seed:phoible                      # Phonological inventories for ~2,177 languages
+                                          # into linguistic_features (feature_code='PHOIBLE:X').
+                                          # ~2–3 min. Requires migration-018.
 ```
 
 ### Layer 4 — Technology readiness (~5 min)
@@ -101,7 +104,7 @@ Exception: `seed:glottolog` and `seed:geonames` use upsert on natural keys — a
 | `orthographies` | ~3,000–5,000 |
 | `audio_corpora` | ~130–150 |
 | `text_corpora` | ~400–600 (Masakhane: ~40 langs × ~12 datasets) |
-| `linguistic_features` | ~360,000–443,000 (Grambank) |
+| `linguistic_features` | ~420,000–510,000 (Grambank ~443K + PHOIBLE ~60–80K) |
 | `tech_readiness` | ~8,600 (one per language) |
 
 ---
