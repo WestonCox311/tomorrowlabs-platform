@@ -12,23 +12,23 @@ Nothing actively in flight.
 
 ## Last completed
 
-**FilterBar system + docs/sources pages + sidebar + seed scripts — 2026-05-17**
+**Language models + Places hierarchy — 2026-05-17**
 
-| Shipped | Details |
-|---------|---------|
-| FilterBar component | `src/components/filter-bar.tsx` — client component, auto-apply selects, filter chips, clear all |
-| Languages filters | + ethnologue_status (6 values), is_constructed (true/false) |
-| Tech Readiness filters | + language name search, omnilingual (yes only), IPA path (yes only) |
-| Places, Organizations | Replaced inline form with FilterBar |
-| Communities | + self_identified filter |
-| Documentation page | `/admin/documentation` — glossary (30+ terms), table reference by layer |
-| Sources page | `/admin/sources` — grouped by type, reliability badges |
-| Sidebar | "Spine Entities" → "Data"; Products section (Babagigi); Documentation + Sources utility links |
-| Seed scripts | seed-wikidata-enrichment, seed-glottolog-endangerment, seed-wals, seed-common-voice, seed-iso639 |
-| UNESCO vitality fix | Wikidata labels use "1 safe" prefix format — fixed label map; 2,120 vitality_assessments rows now inserted |
-| seed-wikidata-vitality | Standalone Phase 4 script for future re-runs |
+| Shipped | What |
+|---------|------|
+| migration-013 | English added to Babagigi (wave-1, live, glottocode stan1293) |
+| migration-014 | `language_models` table — tracks TTS/STT/LLM/translation/G2P resources per language |
+| seed:whisper | Whisper Large v3 STT coverage (~97 languages, provider=openai, quality=production) |
+| seed:mms | Meta MMS ASR + TTS coverage (~1,107 languages, quality=usable, license=cc-by-nc-4.0) |
+| seed:huggingface | HuggingFace top TTS+STT models (449 TTS + 467 STT rows, 916 total) |
+| Language detail page | New Language Models section: grouped by type, edit/delete, + Add link |
+| /admin/language-models | New + edit forms for individual model resources |
+| /admin/readiness | Language Readiness Dashboard — all Babagigi wave languages with tech tiers, vitality, speakers, wave badges, sortable columns |
+| Sidebar | "Decisions" section with Readiness link |
+| Places detail page | Redesigned: parent breadcrumb, parent field as clickable link, Subdivisions section (child places), Languages section (merged from primary_languages_used + geographic_concentrations) |
+| seed:geonames-admin1 | Script to seed ~3,900 first-level admin divisions for all 252 countries from GeoNames TSV |
 
-**Phase 1–3 + Phase 4 (partial) — fully complete as of 2026-05-16**
+**Phase 1–3 + Phase 4 (partial) — complete as of 2026-05-16**
 
 All planned tasks through Task 10 are done, plus additional Phase 4 work:
 
@@ -54,11 +54,12 @@ All planned tasks through Task 10 are done, plus additional Phase 4 work:
 
 These need to be run manually in Supabase SQL Editor or terminal:
 
-1. Run **migration-010** — fixes is_signed_language for ~140 sign languages
-2. Run **migration-011** — fixes is_constructed for Esperanto, Lojban, Klingon etc.
-3. Run **migration-012** — cleans up Wikidata URI values written as endonyms
-4. Run `npm run seed:endonyms` — re-runs endonym seed (now paginated + URI-filtered)
-5. Run `npm run types:generate` — regenerate TypeScript types after schema work
+1. Run **migration-014** (`migrations/migration-014-language-models.sql`) in Supabase SQL editor — creates `language_models` table + seed sources
+2. Run `npm run types:generate` — regenerate TypeScript types after migration-014
+3. Run `npm run seed:whisper` — Whisper STT coverage
+4. Run `npm run seed:mms` — Meta MMS ASR + TTS coverage
+5. Run `npm run seed:huggingface` — HuggingFace top models
+6. Run `npm run seed:geonames-admin1` — ~3,900 first-level admin divisions for all 252 countries
 
 ## Blockers
 

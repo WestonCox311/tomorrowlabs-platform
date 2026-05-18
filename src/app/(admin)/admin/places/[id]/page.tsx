@@ -13,6 +13,56 @@ interface Props {
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
+interface MergedLanguage {
+  id: string;
+  english_name: string;
+  glottocode: string | null;
+  ethnologue_status: string | null;
+  estimated_speakers: number | null;
+  is_diaspora: boolean | null;
+  is_official: boolean;
+  is_signed: boolean;
+  data_year: number | null;
+  source: 'array' | 'concentration';
+}
+
+function LanguageTable({ langs }: { langs: MergedLanguage[] }) {
+  return (
+    <div className="border border-border rounded-lg overflow-hidden">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-border bg-muted/30">
+            <th className="text-left px-4 py-2 font-medium text-muted-foreground">Language</th>
+            <th className="text-left px-4 py-2 font-medium text-muted-foreground">Glottocode</th>
+            <th className="text-right px-4 py-2 font-medium text-muted-foreground">Speakers here</th>
+            <th className="text-left px-4 py-2 font-medium text-muted-foreground">Year</th>
+            <th className="text-left px-4 py-2 font-medium text-muted-foreground">Ethnologue</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border">
+          {langs.map((lang) => (
+            <tr key={lang.id} className="hover:bg-muted/20 transition-colors">
+              <td className="px-4 py-2">
+                <Link href={`/admin/languages/${lang.id}`} className="text-moss hover:underline font-medium">
+                  {lang.english_name}
+                </Link>
+              </td>
+              <td className="px-4 py-2 font-mono text-xs text-muted-foreground">
+                {lang.glottocode ?? '—'}
+              </td>
+              <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">
+                {lang.estimated_speakers != null ? lang.estimated_speakers.toLocaleString() : '—'}
+              </td>
+              <td className="px-4 py-2 text-xs text-muted-foreground">{lang.data_year ?? '—'}</td>
+              <td className="px-4 py-2 text-muted-foreground">{lang.ethnologue_status ?? '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function formatValue(value: string | number | boolean | null | undefined) {
   if (value === null || value === undefined) return <span className="text-muted-foreground">—</span>;
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
@@ -60,15 +110,16 @@ export default async function PlaceDetailPage({ params }: Props) {
 
     // Languages via primary_languages_used array
     sb.from('languages')
-      .select('id, english_name, glottocode, ethnologue_status')
+      .select('id, english_name, glottocode, ethnologue_status, is_signed_language')
       .contains('primary_languages_used', [id]),
 
-    // Languages via geographic_concentrations (country-level only, by ISO alpha-2)
+    // Languages via geographic_concentrations (national rows only for country pages)
     place.iso_3166_1_alpha2
       ? sb.from('geographic_concentrations')
-          .select('language_id, estimated_speakers, is_diaspora_concentration, data_year, languages(id, english_name, glottocode, ethnologue_status)')
+          .select('language_id, estimated_speakers, is_diaspora_concentration, is_official_language, data_year, languages(id, english_name, glottocode, ethnologue_status, is_signed_language)')
           .eq('country_code', place.iso_3166_1_alpha2)
-          .limit(200)
+          .eq('region_type', 'country')
+          .limit(500)
       : Promise.resolve({ data: [] }),
 
     // Most recent population snapshot
@@ -84,18 +135,9 @@ export default async function PlaceDetailPage({ params }: Props) {
   const demographics: { population_total: number | null; data_year: number | null; confidence: string | null } | null = demographicsResult.data ?? null;
   const subdivisions: Array<{ id: string; english_name: string; endonym: string | null; granularity: string; status: string | null; iso_3166_2: string | null }> = subdivisionsResult.data ?? [];
 
-  // Merge languages from both sources, deduplicating on language id
-  // Prefer concentration row if it has estimated_speakers
-  const langMap = new Map<string, {
-    id: string;
-    english_name: string;
-    glottocode: string | null;
-    ethnologue_status: string | null;
-    estimated_speakers: number | null;
-    is_diaspora: boolean | null;
-    data_year: number | null;
-    source: 'array' | 'concentration';
-  }>();
+  // Merge languages from both sources, deduplicating on language id.
+  // Prefer concentration row if it has estimated_speakers.
+  const langMap = new Map<string, MergedLanguage>();
 
   for (const lang of (langsByArrayResult.data ?? [])) {
     langMap.set(lang.id, {
@@ -105,6 +147,8 @@ export default async function PlaceDetailPage({ params }: Props) {
       ethnologue_status: lang.ethnologue_status ?? null,
       estimated_speakers: null,
       is_diaspora: null,
+      is_official: false,
+      is_signed: lang.is_signed_language ?? false,
       data_year: null,
       source: 'array',
     });
@@ -114,15 +158,19 @@ export default async function PlaceDetailPage({ params }: Props) {
     const lang = Array.isArray(row.languages) ? row.languages[0] : row.languages;
     if (!lang) continue;
     const existing = langMap.get(lang.id);
-    if (existing && row.estimated_speakers == null) continue; // keep existing if concentration has no speaker data
+    if (existing && row.estimated_speakers == null) continue; // keep existing if this row has no speaker data
     langMap.set(lang.id, {
       id: lang.id,
       english_name: lang.english_name,
       glottocode: lang.glottocode ?? null,
       ethnologue_status: lang.ethnologue_status ?? null,
-      estimated_speakers: row.estimated_speakers ?? null,
-      is_diaspora: row.is_diaspora_concentration ?? null,
-      data_year: row.data_year ?? null,
+      estimated_speakers: row.estimated_speakers ?? existing?.estimated_speakers ?? null,
+      // Preserve non-null/non-false flags from either source row — multiple sources
+      // (e.g. Wikidata + ACS) may each have partial flag data.
+      is_diaspora: row.is_diaspora_concentration ?? existing?.is_diaspora ?? null,
+      is_official: (row.is_official_language ?? false) || (existing?.is_official ?? false),
+      is_signed: lang.is_signed_language ?? false,
+      data_year: row.data_year ?? existing?.data_year ?? null,
       source: 'concentration',
     });
   }
@@ -131,6 +179,13 @@ export default async function PlaceDetailPage({ params }: Props) {
     (b.estimated_speakers ?? -1) - (a.estimated_speakers ?? -1) ||
     a.english_name.localeCompare(b.english_name)
   );
+
+  const spokenLangs     = languages.filter(l => !l.is_signed);
+  const signedLangs     = languages.filter(l => l.is_signed);
+  const topLangs        = spokenLangs.filter(l => l.estimated_speakers != null).slice(0, 10);
+  const topLangIds      = new Set(topLangs.map(l => l.id));
+  const indigenousLangs = spokenLangs.filter(l => !topLangIds.has(l.id) && !l.is_diaspora);
+  const diasporaLangs   = spokenLangs.filter(l => !topLangIds.has(l.id) && l.is_diaspora === true);
 
   const deleteAction = deletePlace.bind(null, id);
 
@@ -294,12 +349,10 @@ export default async function PlaceDetailPage({ params }: Props) {
 
       {/* ── Languages ─────────────────────────────────────────────────────── */}
       <div className="mt-10">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-semibold text-ink">
-            Languages
-            <span className="ml-2 text-sm font-normal text-muted-foreground">({languages.length})</span>
-          </h2>
-        </div>
+        <h2 className="text-base font-semibold text-ink mb-4">
+          Languages
+          <span className="ml-2 text-sm font-normal text-muted-foreground">({languages.length})</span>
+        </h2>
 
         {languages.length === 0 ? (
           <div className="border border-border rounded-lg px-4 py-6 text-center">
@@ -310,47 +363,46 @@ export default async function PlaceDetailPage({ params }: Props) {
             </p>
           </div>
         ) : (
-          <div className="border border-border rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left px-4 py-2 font-medium text-muted-foreground">Language</th>
-                  <th className="text-left px-4 py-2 font-medium text-muted-foreground">Glottocode</th>
-                  <th className="text-right px-4 py-2 font-medium text-muted-foreground">Speakers here</th>
-                  <th className="text-left px-4 py-2 font-medium text-muted-foreground">Year</th>
-                  <th className="text-left px-4 py-2 font-medium text-muted-foreground">Diaspora?</th>
-                  <th className="text-left px-4 py-2 font-medium text-muted-foreground">Ethnologue</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {languages.map((lang) => (
-                  <tr key={lang.id} className="hover:bg-muted/20 transition-colors">
-                    <td className="px-4 py-2">
-                      <Link href={`/admin/languages/${lang.id}`} className="text-moss hover:underline font-medium">
-                        {lang.english_name}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-2 font-mono text-xs text-muted-foreground">
-                      {lang.glottocode ?? '—'}
-                    </td>
-                    <td className="px-4 py-2 text-right text-muted-foreground">
-                      {lang.estimated_speakers != null
-                        ? lang.estimated_speakers.toLocaleString()
-                        : '—'}
-                    </td>
-                    <td className="px-4 py-2 text-xs text-muted-foreground">
-                      {lang.data_year ?? '—'}
-                    </td>
-                    <td className="px-4 py-2 text-muted-foreground">
-                      {lang.is_diaspora == null ? '—' : lang.is_diaspora ? 'Yes' : 'No'}
-                    </td>
-                    <td className="px-4 py-2 text-muted-foreground">
-                      {lang.ethnologue_status ?? '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-6">
+            {topLangs.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium text-ink mb-2">
+                  Most spoken
+                  <span className="ml-1.5 text-muted-foreground font-normal">(top {topLangs.length})</span>
+                </h3>
+                <LanguageTable langs={topLangs} />
+              </div>
+            )}
+
+            {indigenousLangs.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium text-ink mb-2">
+                  Indigenous & minority
+                  <span className="ml-1.5 text-muted-foreground font-normal">({indigenousLangs.length})</span>
+                </h3>
+                <LanguageTable langs={indigenousLangs} />
+              </div>
+            )}
+
+            {diasporaLangs.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium text-ink mb-2">
+                  Diaspora communities
+                  <span className="ml-1.5 text-muted-foreground font-normal">({diasporaLangs.length})</span>
+                </h3>
+                <LanguageTable langs={diasporaLangs} />
+              </div>
+            )}
+
+            {signedLangs.length > 0 && (
+              <div>
+                <h3 className="text-sm font-medium text-ink mb-2">
+                  Signed languages
+                  <span className="ml-1.5 text-muted-foreground font-normal">({signedLangs.length})</span>
+                </h3>
+                <LanguageTable langs={signedLangs} />
+              </div>
+            )}
           </div>
         )}
       </div>

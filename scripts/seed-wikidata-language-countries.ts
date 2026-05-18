@@ -366,6 +366,7 @@ async function main() {
       // If we have P37 data for this language, anything outside its official countries is diaspora.
       // If no P37 data exists (language has no official country), default to false.
       const isDiaspora = nativeSet && nativeSet.size > 0 ? !nativeSet.has(countryCode) : false;
+      const isOfficial = !!(nativeSet && nativeSet.has(countryCode));
       gcRows.push({
         language_id: languageId,
         country_code: countryCode,
@@ -373,6 +374,7 @@ async function main() {
         region_type: 'country',
         estimated_speakers: speakers,
         is_diaspora_concentration: isDiaspora,
+        is_official_language: isOfficial,
         source_id: WIKIDATA_SOURCE_ID,
         confidence: 'low',
       });
