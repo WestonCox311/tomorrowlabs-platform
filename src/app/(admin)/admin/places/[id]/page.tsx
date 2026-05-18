@@ -42,7 +42,7 @@ export default async function PlaceDetailPage({ params }: Props) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const sb = supabase as any;
 
-  const [parentResult, subdivisionsResult, langsByArrayResult, langsByConcentrationResult] = await Promise.all([
+  const [parentResult, subdivisionsResult, langsByArrayResult, langsByConcentrationResult, demographicsResult] = await Promise.all([
     // Parent place (for breadcrumb + clickable link)
     place.parent_place_id
       ? sb.from('places')
@@ -70,9 +70,18 @@ export default async function PlaceDetailPage({ params }: Props) {
           .eq('country_code', place.iso_3166_1_alpha2)
           .limit(200)
       : Promise.resolve({ data: [] }),
+
+    // Most recent population snapshot
+    sb.from('place_demographics')
+      .select('population_total, data_year, confidence, assessment_date')
+      .eq('place_id', id)
+      .order('assessment_date', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const parent: { id: string; english_name: string; granularity: string } | null = parentResult.data ?? null;
+  const demographics: { population_total: number | null; data_year: number | null; confidence: string | null } | null = demographicsResult.data ?? null;
   const subdivisions: Array<{ id: string; english_name: string; endonym: string | null; granularity: string; status: string | null; iso_3166_2: string | null }> = subdivisionsResult.data ?? [];
 
   // Merge languages from both sources, deduplicating on language id
@@ -175,6 +184,19 @@ export default async function PlaceDetailPage({ params }: Props) {
           <h1 className="text-2xl font-semibold text-ink">{place.english_name}</h1>
           {place.endonym && <p className="text-muted-foreground mt-1">{place.endonym}</p>}
           <p className="text-xs text-muted-foreground mt-1">{place.granularity}</p>
+          {demographics?.population_total != null && (
+            <p className="text-sm text-muted-foreground mt-1">
+              Population:{' '}
+              <span className="font-medium text-ink">
+                {demographics.population_total.toLocaleString()}
+              </span>
+              {demographics.data_year && (
+                <span className="text-xs ml-1 text-muted-foreground">
+                  ({demographics.data_year})
+                </span>
+              )}
+            </p>
+          )}
         </div>
         <div className="flex gap-2">
           <Link
