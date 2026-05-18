@@ -78,7 +78,7 @@ export default async function LanguageDetailPage({ params }: Props) {
     // Speaker populations (global + per-country)
     sb
       .from('speaker_populations')
-      .select('country_code, context, l1_speakers, l2_speakers, heritage_speakers, data_year, confidence, notes')
+      .select('id, country_code, context, l1_speakers, l2_speakers, heritage_speakers, data_year, confidence, notes')
       .eq('language_id', id)
       .order('l1_speakers', { ascending: false, nullsFirst: false }),
     // Geographic concentrations (where it's spoken)
