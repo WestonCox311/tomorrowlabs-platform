@@ -113,11 +113,12 @@ export default async function PlaceDetailPage({ params }: Props) {
       .select('id, english_name, glottocode, ethnologue_status, is_signed_language')
       .contains('primary_languages_used', [id]),
 
-    // Languages via geographic_concentrations (country-level only, by ISO alpha-2)
+    // Languages via geographic_concentrations (national rows only for country pages)
     place.iso_3166_1_alpha2
       ? sb.from('geographic_concentrations')
           .select('language_id, estimated_speakers, is_diaspora_concentration, is_official_language, data_year, languages(id, english_name, glottocode, ethnologue_status, is_signed_language)')
           .eq('country_code', place.iso_3166_1_alpha2)
+          .eq('region_type', 'country')
           .limit(500)
       : Promise.resolve({ data: [] }),
 
