@@ -113,7 +113,7 @@ async function seedModelType(
     }
 
     if (i % 500 === 0 && i > 0) {
-      console.log(`  ${label} — ${i}/${codes.length} processed…`);
+      console.log(`  ${modelName} — ${i}/${codes.length} processed…`);
       await sleep(200);
     }
   }
