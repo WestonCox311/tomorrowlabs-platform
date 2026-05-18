@@ -205,6 +205,46 @@ GROUP BY ?glottolog ?countryCode`,
   return map;
 }
 
+// ── Phase D: Country-first speaker counts (P1098 + pq:P17) ───────────────────
+// Queries from the COUNTRY side: for each country, find every language that
+// has a P1098 (speaker count) statement qualified by P17=<that country>.
+// This catches immigrant/diaspora languages that editors haven't added to P17
+// on the language item or P2936 on the country item — but have added as a
+// qualified speaker count (e.g. "2.9M Vietnamese speakers in the US" on Q9199).
+// Batches by ISO alpha-2 codes (252 countries ≈ 3 batches). Very fast.
+
+async function fetchSpeakersByCountry(
+  isoCodes: string[],
+): Promise<Map<string, Map<string, number>>> {
+  const rows = await batchedQuery<Binding>(
+    isoCodes,
+    (vals) => `
+SELECT ?glottolog ?countryCode (MAX(?speakers) AS ?spk) WHERE {
+  VALUES ?countryCode { ${vals} }
+  ?country wdt:P297 ?countryCode .
+  ?lang p:P1098 ?stmt .
+  ?stmt ps:P1098 ?speakers .
+  ?stmt pq:P17 ?country .
+  ?lang wdt:P1394 ?glottolog .
+}
+GROUP BY ?glottolog ?countryCode`,
+    'SpeakersByCountry',
+  );
+
+  const map = new Map<string, Map<string, number>>();
+  for (const b of rows) {
+    const glottocode = b.glottolog?.value;
+    const countryCode = b.countryCode?.value?.toUpperCase();
+    const speakersRaw = b.spk?.value;
+    if (!glottocode || !countryCode || countryCode.length !== 2 || !speakersRaw) continue;
+    const speakers = Math.round(parseFloat(speakersRaw));
+    if (isNaN(speakers) || speakers <= 0) continue;
+    if (!map.has(glottocode)) map.set(glottocode, new Map());
+    map.get(glottocode)!.set(countryCode, speakers);
+  }
+  return map;
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -232,9 +272,20 @@ async function main() {
   }
   console.log(`  Loaded ${glottoToId.size} languages`);
 
+  // Load all country ISO alpha-2 codes for Phase D
+  const { data: countryPlaces } = await sb
+    .from('places')
+    .select('iso_3166_1_alpha2')
+    .eq('granularity', 'country')
+    .not('iso_3166_1_alpha2', 'is', null);
+  const allIsoCodes: string[] = (countryPlaces ?? []).map((c: { iso_3166_1_alpha2: string }) => c.iso_3166_1_alpha2);
+  console.log(`  Loaded ${allIsoCodes.length} country ISO codes`);
+
   const glottocodes = Array.from(glottoToId.keys());
   const totalBatches = Math.ceil(glottocodes.length / SPARQL_BATCH);
-  console.log(`\n~${totalBatches} batches per phase × ~${BATCH_DELAY_MS / 1000}s = ~${Math.round((totalBatches * BATCH_DELAY_MS) / 60000)} min per phase (3 phases total)\n`);
+  const isoBatches = Math.ceil(allIsoCodes.length / SPARQL_BATCH);
+  console.log(`\nPhases A–C: ~${totalBatches} batches × ~${BATCH_DELAY_MS / 1000}s = ~${Math.round((totalBatches * BATCH_DELAY_MS) / 60000)} min each`);
+  console.log(`Phase D: ~${isoBatches} batches × ~${BATCH_DELAY_MS / 1000}s (country-first, very fast)\n`);
 
   // ── Phase A: Global speaker counts ─────────────────────────────────────────
   console.log('Phase A: Fetching global speaker counts from Wikidata…');
@@ -277,6 +328,34 @@ async function main() {
   console.log('\nPhase C: Fetching native countries (P37 official language) for diaspora flags…');
   const nativeCountriesMap = await fetchNativeCountries(glottocodes);
   console.log(`  Found official-language data for ${nativeCountriesMap.size} languages`);
+
+  // ── Phase D: Country-first speaker counts ───────────────────────────────────
+  console.log('\nPhase D: Fetching country-qualified speaker counts (P1098+pq:P17)…');
+  const speakersByCountry = await fetchSpeakersByCountry(allIsoCodes);
+  console.log(`  Found speaker data for ${speakersByCountry.size} languages across countries`);
+
+  // Merge Phase D into countryMap: adds languages missed by P17/P2936 and
+  // upgrades null speaker counts with precise country-specific values.
+  let phaseD_newLangs = 0;
+  let phaseD_newPairs = 0;
+  for (const [glottocode, countrySpeakers] of speakersByCountry) {
+    if (!countryMap.has(glottocode)) {
+      countryMap.set(glottocode, []);
+      phaseD_newLangs++;
+    }
+    const entries = countryMap.get(glottocode)!;
+    for (const [countryCode, speakers] of countrySpeakers) {
+      const existing = entries.find((e) => e.countryCode === countryCode);
+      if (existing) {
+        // Upgrade speaker count — Phase D data is country-specific, more reliable
+        existing.speakers = speakers;
+      } else {
+        entries.push({ countryCode, speakers });
+        phaseD_newPairs++;
+      }
+    }
+  }
+  console.log(`  Phase D: ${phaseD_newLangs} new languages, ${phaseD_newPairs} new language×country pairs`);
 
   const gcRows: object[] = [];
   for (const [glottocode, entries] of countryMap) {
