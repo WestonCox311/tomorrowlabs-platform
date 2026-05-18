@@ -120,12 +120,22 @@ async function fetchACS(geography: 'national' | 'states'): Promise<string[][]> {
     headers: { 'User-Agent': 'TomorrowLabs-Platform/1.0 (language-data-seed)' },
   });
 
+  const body = await res.text();
+
+  // Census API returns HTML for auth errors instead of JSON
+  if (body.trimStart().startsWith('<')) {
+    throw new Error(
+      `Census API returned HTML (likely requires an API key).\n` +
+      `Get a free key at: https://api.census.gov/data/key_signup.html\n` +
+      `Then add CENSUS_API_KEY=your_key to .env.local and re-run.`
+    );
+  }
+
   if (!res.ok) {
-    const body = await res.text();
     throw new Error(`Census API ${res.status}: ${body.slice(0, 200)}`);
   }
 
-  return res.json() as Promise<string[][]>;
+  return JSON.parse(body) as string[][];
 }
 
 // ── main ──────────────────────────────────────────────────────────────────────
@@ -146,10 +156,19 @@ async function main() {
 
   // ── Step 2: build language lookup maps ───────────────────────────────────────
   console.log('Loading languages from DB...');
-  const { data: allLangs, error: langErr } = await supabase
-    .from('languages')
-    .select('id, english_name, glottocode');
-  if (langErr || !allLangs) throw new Error(`Failed to load languages: ${langErr?.message}`);
+  const allLangs: Array<{ id: string; english_name: string; glottocode: string | null }> = [];
+  const PAGE = 1000;
+  for (let page = 0; ; page++) {
+    const { data, error } = await supabase
+      .from('languages')
+      .select('id, english_name, glottocode')
+      .range(page * PAGE, (page + 1) * PAGE - 1);
+    if (error) throw new Error(`Failed to load languages page ${page}: ${error.message}`);
+    if (!data?.length) break;
+    allLangs.push(...data);
+    if (data.length < PAGE) break;
+  }
+  console.log(`  Loaded ${allLangs.length} languages from DB`);
 
   const byGlottocode = new Map<string, string>();
   const byName = new Map<string, string>();
