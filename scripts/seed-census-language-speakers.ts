@@ -49,6 +49,10 @@ interface LangDef {
 // but this is the best available ACS signal and still correct at ~243M nationally.
 const ENGLISH_VAR = 'B16001_002E';
 
+// Variable layout verified against ACS 2022 B16001 group definition via Census API.
+// The 2022 table merged Yiddish + Pennsylvania Dutch + other West Germanic into one
+// aggregate (B16001_021E), eliminating the formerly separate Scandinavian group.
+// This shifted all subsequent variables 6 positions earlier vs older ACS years.
 const LANG_DEFS: LangDef[] = [
   { varId: 'B16001_003E', label: 'Spanish',              glottocode: 'stan1288' },
   { varId: 'B16001_006E', label: 'French',               englishName: 'French' },
@@ -56,43 +60,42 @@ const LANG_DEFS: LangDef[] = [
   { varId: 'B16001_012E', label: 'Italian',              englishName: 'Italian' },
   { varId: 'B16001_015E', label: 'Portuguese',           englishName: 'Portuguese' },
   { varId: 'B16001_018E', label: 'German',               englishName: 'German' },
-  { varId: 'B16001_021E', label: 'Yiddish',              glottocode: 'east2295', englishName: 'Eastern Yiddish' },
-  // B16001_024E: Other West Germanic — skip (aggregate)
-  // B16001_027E: Scandinavian — skip (aggregate)
-  { varId: 'B16001_030E', label: 'Greek',                glottocode: 'mode1248', englishName: 'Modern Greek' },
-  { varId: 'B16001_033E', label: 'Russian',              glottocode: 'russ1263' },
-  { varId: 'B16001_036E', label: 'Polish',               englishName: 'Polish' },
-  // B16001_039E: Serbo-Croatian — skip (aggregate)
-  { varId: 'B16001_042E', label: 'Ukrainian',            englishName: 'Ukrainian' },
-  { varId: 'B16001_045E', label: 'Armenian',             glottocode: 'nucl1235', englishName: 'Eastern Armenian' },
-  { varId: 'B16001_048E', label: 'Persian',              glottocode: 'west2369', englishName: 'Western Farsi' },
-  { varId: 'B16001_051E', label: 'Gujarati',             glottocode: 'guja1252' },
-  { varId: 'B16001_054E', label: 'Hindi',                glottocode: 'hind1269' },
-  { varId: 'B16001_057E', label: 'Urdu',                 glottocode: 'urdu1245' },
-  { varId: 'B16001_060E', label: 'Punjabi',              glottocode: 'panj1256', englishName: 'Eastern Panjabi' },
-  { varId: 'B16001_063E', label: 'Bengali',              glottocode: 'beng1280' },
-  // B16001_066E: Nepali, Marathi, or other Indic — skip (aggregate)
-  { varId: 'B16001_069E', label: 'Telugu',               glottocode: 'telu1262' },
-  { varId: 'B16001_072E', label: 'Tamil',                glottocode: 'tami1289' },
-  // B16001_075E: Malayalam, Kannada, or other Dravidian — skip (aggregate)
-  { varId: 'B16001_078E', label: 'Sinhala',              englishName: 'Sinhala' },
-  // B16001_081E: Other Indo-European — skip (aggregate)
-  { varId: 'B16001_084E', label: 'Vietnamese',           glottocode: 'viet1252' },
-  { varId: 'B16001_087E', label: 'Khmer',                glottocode: 'cent1989', englishName: 'Central Khmer' },
-  { varId: 'B16001_090E', label: 'Hmong',                englishName: 'Hmong' },
-  // B16001_093E: Thai, Lao, or other Tai-Kadai — skip (aggregate)
-  { varId: 'B16001_096E', label: 'Japanese',             englishName: 'Japanese' },
-  { varId: 'B16001_099E', label: 'Korean',               glottocode: 'kore1280' },
-  { varId: 'B16001_102E', label: 'Chinese',              englishName: 'Mandarin Chinese' },
-  { varId: 'B16001_105E', label: 'Tagalog',              glottocode: 'taga1270' },
-  // B16001_108E: Ilocano, Samoan, Hawaiian, or other Austronesian — skip (aggregate)
-  { varId: 'B16001_111E', label: 'Arabic',               glottocode: 'stan1318', englishName: 'Standard Arabic' },
-  { varId: 'B16001_114E', label: 'Hebrew',               glottocode: 'hebr1245', englishName: 'Modern Hebrew' },
-  // B16001_117E: Amharic, Somali, or other Afro-Asiatic — skip (aggregate)
-  // B16001_120E: Yoruba, Twi, Igbo, or other West Africa — skip (aggregate)
-  // B16001_123E: Swahili or other Bantu — skip (aggregate)
-  { varId: 'B16001_126E', label: 'Navajo',               glottocode: 'nava1243' },
-  // B16001_129E: Other Native North American — skip (aggregate)
+  // B16001_021E: "Yiddish, Pennsylvania Dutch or other West Germanic" — skip (aggregate)
+  { varId: 'B16001_024E', label: 'Greek',                glottocode: 'mode1248', englishName: 'Modern Greek' },
+  { varId: 'B16001_027E', label: 'Russian',              glottocode: 'russ1263' },
+  { varId: 'B16001_030E', label: 'Polish',               englishName: 'Polish' },
+  // B16001_033E: Serbo-Croatian — skip (politically split language pair)
+  // B16001_036E: "Ukrainian or other Slavic languages" — skip (aggregate)
+  { varId: 'B16001_039E', label: 'Armenian',             glottocode: 'nucl1235', englishName: 'Eastern Armenian' },
+  { varId: 'B16001_042E', label: 'Persian',              glottocode: 'west2369', englishName: 'Western Farsi' },
+  { varId: 'B16001_045E', label: 'Gujarati',             glottocode: 'guja1252' },
+  { varId: 'B16001_048E', label: 'Hindi',                glottocode: 'hind1269' },
+  { varId: 'B16001_051E', label: 'Urdu',                 glottocode: 'urdu1245' },
+  { varId: 'B16001_054E', label: 'Punjabi',              glottocode: 'panj1256', englishName: 'Eastern Panjabi' },
+  { varId: 'B16001_057E', label: 'Bengali',              glottocode: 'beng1280' },
+  // B16001_060E: "Nepali, Marathi, or other Indic languages" — skip (aggregate)
+  // B16001_063E: "Other Indo-European languages" — skip (aggregate)
+  { varId: 'B16001_066E', label: 'Telugu',               glottocode: 'telu1262' },
+  { varId: 'B16001_069E', label: 'Tamil',                glottocode: 'tami1289' },
+  // B16001_072E: "Malayalam, Kannada, or other Dravidian languages" — skip (aggregate)
+  { varId: 'B16001_075E', label: 'Chinese',              englishName: 'Mandarin Chinese' },
+  { varId: 'B16001_078E', label: 'Japanese',             englishName: 'Japanese' },
+  { varId: 'B16001_081E', label: 'Korean',               glottocode: 'kore1280' },
+  { varId: 'B16001_084E', label: 'Hmong',                englishName: 'Hmong' },
+  { varId: 'B16001_087E', label: 'Vietnamese',           glottocode: 'viet1252' },
+  { varId: 'B16001_090E', label: 'Khmer',                glottocode: 'cent1989', englishName: 'Central Khmer' },
+  // B16001_093E: "Thai, Lao, or other Tai-Kadai languages" — skip (aggregate)
+  // B16001_096E: "Other languages of Asia" — skip (aggregate)
+  { varId: 'B16001_099E', label: 'Tagalog',              glottocode: 'taga1270' },
+  // B16001_102E: "Ilocano, Samoan, Hawaiian, or other Austronesian languages" — skip (aggregate)
+  { varId: 'B16001_105E', label: 'Arabic',               glottocode: 'stan1318', englishName: 'Standard Arabic' },
+  { varId: 'B16001_108E', label: 'Hebrew',               glottocode: 'hebr1245', englishName: 'Modern Hebrew' },
+  // B16001_111E: "Amharic, Somali, or other Afro-Asiatic languages" — skip (aggregate)
+  // B16001_114E: "Yoruba, Twi, Igbo, or other languages of Western Africa" — skip (aggregate)
+  // B16001_117E: "Swahili or other languages of Central, Eastern, and Southern Africa" — skip (aggregate)
+  { varId: 'B16001_120E', label: 'Navajo',               glottocode: 'nava1243' },
+  // B16001_123E: "Other Native languages of North America" — skip (aggregate)
+  // B16001_126E: "Other and unspecified languages" — skip (aggregate)
 ];
 
 // ── state FIPS → ISO 3166-2 ───────────────────────────────────────────────────
