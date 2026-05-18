@@ -88,20 +88,29 @@ async function main() {
 
   // Load all existing admin1 places into a lookup map: iso_3166_2 → id
   // Admin1 places have iso_3166_2 set to e.g. "US-CA"
-  console.log('Loading admin1 places…');
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: admin1Places, error: admin1Error } = await (supabase as any)
-    .from('places')
-    .select('id, iso_3166_2')
-    .eq('granularity', 'state-province')
-    .not('iso_3166_2', 'is', null)
-    .limit(5000);
-
-  if (admin1Error) throw new Error(`Failed to load admin1 places: ${admin1Error.message}`);
-
+  // Supabase enforces a server-side max of 1,000 rows per query, so paginate.
+  console.log('Loading admin1 places (paginated)…');
   const admin1Map: Record<string, string> = {}; // iso_3166_2 → place id
-  for (const p of admin1Places ?? []) {
-    if (p.iso_3166_2) admin1Map[p.iso_3166_2] = p.id;
+  const PAGE_SIZE = 1000;
+  let page = 0;
+  while (true) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase as any)
+      .from('places')
+      .select('id, iso_3166_2')
+      .eq('granularity', 'state-province')
+      .not('iso_3166_2', 'is', null)
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+
+    if (error) throw new Error(`Failed to load admin1 places (page ${page}): ${error.message}`);
+    if (!data || data.length === 0) break;
+
+    for (const p of data) {
+      if (p.iso_3166_2) admin1Map[p.iso_3166_2] = p.id;
+    }
+
+    if (data.length < PAGE_SIZE) break;
+    page++;
   }
   console.log(`Loaded ${Object.keys(admin1Map).length} admin1 records`);
 
