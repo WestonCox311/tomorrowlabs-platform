@@ -363,7 +363,7 @@ export default async function PlaceDetailPage({ params }: Props) {
             {officialLangs.length > 0 && (
               <div>
                 <h3 className="text-sm font-medium text-ink mb-2">
-                  Official & national
+                  Officially recognized
                   <span className="ml-1.5 text-muted-foreground font-normal">({officialLangs.length})</span>
                 </h3>
                 <LanguageTable langs={officialLangs} />
