@@ -1,3 +1,4 @@
+import { createAdminClient } from '@/lib/supabase/admin';
 import Link from 'next/link';
 import { OrganizationForm } from '@/components/organization-form';
 import { createOrganization } from '@/app/actions/organizations';
@@ -8,6 +9,15 @@ interface Props {
 
 export default async function NewOrganizationPage({ searchParams }: Props) {
   const { error } = await searchParams;
+  const supabase = createAdminClient();
+
+  const { data: placesData } = await supabase
+    .from('places')
+    .select('id, english_name, granularity')
+    .in('granularity', ['metro-area', 'city', 'county', 'state-province', 'country'])
+    .order('english_name', { ascending: true });
+
+  const places = (placesData ?? []) as { id: string; english_name: string; granularity: string }[];
 
   return (
     <div className="p-8 max-w-2xl">
@@ -23,6 +33,7 @@ export default async function NewOrganizationPage({ searchParams }: Props) {
         action={createOrganization}
         cancelHref="/admin/organizations"
         error={error}
+        places={places}
       />
     </div>
   );

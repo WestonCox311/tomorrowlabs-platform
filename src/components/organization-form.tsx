@@ -11,10 +11,39 @@ const ORG_TYPES: Database['public']['Enums']['organization_type'][] = [
   'informal-collective', 'individual-practitioner', 'peer-organization', 'competitor',
 ];
 
+const TYPE_LABELS: Record<string, string> = {
+  'community-organization': 'Community Org',
+  'nonprofit-formal': 'Nonprofit',
+  'foundation': 'Foundation',
+  'government-agency': 'Government',
+  'intergovernmental': 'Intergovernmental',
+  'academic-institution': 'Academic',
+  'religious-institution': 'Religious',
+  'cultural-institution': 'Cultural',
+  'for-profit-aligned': 'For-profit (aligned)',
+  'for-profit-vendor': 'Vendor',
+  'media-organization': 'Media',
+  'professional-association': 'Professional Assoc.',
+  'informal-collective': 'Informal',
+  'individual-practitioner': 'Individual',
+  'peer-organization': 'Peer Org',
+  'competitor': 'Competitor',
+};
+
 const INCORPORATION_STATUSES: Database['public']['Enums']['incorporation_status'][] = [
   'incorporated-nonprofit', 'incorporated-for-profit', 'incorporated-cooperative',
   'fiscally-sponsored', 'community-collective', 'informal-unincorporated', 'individual',
 ];
+
+const INC_LABELS: Record<string, string> = {
+  'incorporated-nonprofit': 'Incorporated nonprofit',
+  'incorporated-for-profit': 'Incorporated for-profit',
+  'incorporated-cooperative': 'Cooperative',
+  'fiscally-sponsored': 'Fiscally sponsored',
+  'community-collective': 'Community collective',
+  'informal-unincorporated': 'Informal / unincorporated',
+  'individual': 'Individual',
+};
 
 const FUNDER_CATEGORIES: Database['public']['Enums']['funder_category'][] = [
   'not-a-funder', 'private-foundation', 'family-foundation', 'corporate-foundation',
@@ -22,17 +51,53 @@ const FUNDER_CATEGORIES: Database['public']['Enums']['funder_category'][] = [
   'individual-donor', 'crowdfunding',
 ];
 
+const FUNDER_LABELS: Record<string, string> = {
+  'not-a-funder': 'Not a funder',
+  'private-foundation': 'Private foundation',
+  'family-foundation': 'Family foundation',
+  'corporate-foundation': 'Corporate foundation',
+  'community-foundation': 'Community foundation',
+  'public-charity': 'Public charity',
+  'government-grant': 'Government grant',
+  'multilateral-agency': 'Multilateral agency',
+  'individual-donor': 'Individual donor',
+  'crowdfunding': 'Crowdfunding',
+};
+
 const GEOGRAPHIC_SCOPES = ['global', 'regional', 'national', 'local'] as const;
+
+interface PlaceOption {
+  id: string;
+  english_name: string;
+  granularity: string;
+}
 
 interface Props {
   action: (formData: FormData) => Promise<void>;
   defaultValues?: Partial<Organization>;
   cancelHref: string;
   error?: string;
+  places?: PlaceOption[];
 }
 
-export function OrganizationForm({ action, defaultValues, cancelHref, error }: Props) {
+const PLACE_GROUP_ORDER = ['metro-area', 'city', 'county', 'state-province', 'country'];
+const PLACE_GROUP_LABELS: Record<string, string> = {
+  'metro-area': 'Metro Areas',
+  'city': 'Cities',
+  'county': 'Counties',
+  'state-province': 'States / Provinces',
+  'country': 'Countries',
+};
+
+export function OrganizationForm({ action, defaultValues, cancelHref, error, places = [] }: Props) {
   const focusAreasDefault = defaultValues?.focus_areas?.join(', ') ?? '';
+
+  const groupedPlaces = PLACE_GROUP_ORDER.reduce<Record<string, PlaceOption[]>>((acc, g) => {
+    const items = places.filter((p) => p.granularity === g);
+    if (items.length > 0) acc[g] = items;
+    return acc;
+  }, {});
+  const otherPlaces = places.filter((p) => !PLACE_GROUP_ORDER.includes(p.granularity));
 
   return (
     <form action={action} className="space-y-6">
@@ -83,7 +148,7 @@ export function OrganizationForm({ action, defaultValues, cancelHref, error }: P
             defaultValue={defaultValues?.organization_type ?? 'nonprofit-formal'}
             className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background text-ink focus:outline-none focus:ring-2 focus:ring-moss"
           >
-            {ORG_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            {ORG_TYPES.map((t) => <option key={t} value={t}>{TYPE_LABELS[t] ?? t}</option>)}
           </select>
         </div>
 
@@ -95,7 +160,7 @@ export function OrganizationForm({ action, defaultValues, cancelHref, error }: P
             className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background text-ink focus:outline-none focus:ring-2 focus:ring-moss"
           >
             <option value="">—</option>
-            {INCORPORATION_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+            {INCORPORATION_STATUSES.map((s) => <option key={s} value={s}>{INC_LABELS[s] ?? s}</option>)}
           </select>
         </div>
 
@@ -106,7 +171,7 @@ export function OrganizationForm({ action, defaultValues, cancelHref, error }: P
             defaultValue={defaultValues?.funder_category ?? 'not-a-funder'}
             className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background text-ink focus:outline-none focus:ring-2 focus:ring-moss"
           >
-            {FUNDER_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            {FUNDER_CATEGORIES.map((c) => <option key={c} value={c}>{FUNDER_LABELS[c] ?? c}</option>)}
           </select>
         </div>
 
@@ -119,6 +184,27 @@ export function OrganizationForm({ action, defaultValues, cancelHref, error }: P
           >
             <option value="">—</option>
             {GEOGRAPHIC_SCOPES.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-ink mb-1">Headquarters location</label>
+          <select
+            name="headquarters_place_id"
+            defaultValue={defaultValues?.headquarters_place_id ?? ''}
+            className="w-full px-3 py-2 text-sm border border-border rounded-md bg-background text-ink focus:outline-none focus:ring-2 focus:ring-moss"
+          >
+            <option value="">— No location set —</option>
+            {Object.entries(groupedPlaces).map(([granularity, items]) => (
+              <optgroup key={granularity} label={PLACE_GROUP_LABELS[granularity] ?? granularity}>
+                {items.map((p) => <option key={p.id} value={p.id}>{p.english_name}</option>)}
+              </optgroup>
+            ))}
+            {otherPlaces.length > 0 && (
+              <optgroup label="Other">
+                {otherPlaces.map((p) => <option key={p.id} value={p.id}>{p.english_name}</option>)}
+              </optgroup>
+            )}
           </select>
         </div>
 

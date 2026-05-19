@@ -28,6 +28,7 @@ function parseFields(formData: FormData): OrgInsert {
     mission_statement: (formData.get('mission_statement') as string) || null,
     focus_areas: focusAreas.length > 0 ? focusAreas : null,
     geographic_scope: (formData.get('geographic_scope') as string) || null,
+    headquarters_place_id: (formData.get('headquarters_place_id') as string) || null,
     primary_url: (formData.get('primary_url') as string) || null,
     ein: (formData.get('ein') as string) || null,
     wikidata_id: (formData.get('wikidata_id') as string) || null,

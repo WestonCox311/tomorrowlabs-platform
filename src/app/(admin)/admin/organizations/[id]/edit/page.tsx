@@ -17,14 +17,18 @@ export default async function EditOrganizationPage({ params, searchParams }: Pro
   const { error } = await searchParams;
   const supabase = createAdminClient();
 
-  const { data } = await supabase
-    .from('organizations')
-    .select('*')
-    .eq('id', id)
-    .single();
+  const [{ data }, { data: placesData }] = await Promise.all([
+    supabase.from('organizations').select('*').eq('id', id).single(),
+    supabase
+      .from('places')
+      .select('id, english_name, granularity')
+      .in('granularity', ['metro-area', 'city', 'county', 'state-province', 'country'])
+      .order('english_name', { ascending: true }),
+  ]);
 
   if (!data) notFound();
   const org = data as Organization;
+  const places = (placesData ?? []) as { id: string; english_name: string; granularity: string }[];
 
   const updateAction = updateOrganization.bind(null, id);
 
@@ -49,6 +53,7 @@ export default async function EditOrganizationPage({ params, searchParams }: Pro
         defaultValues={org}
         cancelHref={`/admin/organizations/${id}`}
         error={error}
+        places={places}
       />
     </div>
   );
