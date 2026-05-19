@@ -73,3 +73,30 @@ export async function deleteOrganization(id: string) {
   await table.delete().eq('id', id);
   redirect('/admin/organizations');
 }
+
+export async function upsertRelationship(orgId: string, formData: FormData) {
+  // organization_relationships is append-only (Layer 2 time-series). Never UPDATE.
+  const supabase = createAdminClient();
+
+  const activeProjectsRaw = formData.get('active_projects_count') as string;
+  const fields = {
+    organization_id: orgId,
+    assessment_date: formData.get('assessment_date') as string,
+    relationship_status: formData.get('relationship_status') as string,
+    trust_level: (formData.get('trust_level') as string) || null,
+    tomorrowlabs_relationship_owner: (formData.get('tomorrowlabs_relationship_owner') as string) || null,
+    primary_contact_name: (formData.get('primary_contact_name') as string) || null,
+    primary_contact_role: (formData.get('primary_contact_role') as string) || null,
+    primary_contact_email: (formData.get('primary_contact_email') as string) || null,
+    active_projects_count: activeProjectsRaw ? parseInt(activeProjectsRaw, 10) : 0,
+    last_meaningful_contact: (formData.get('last_meaningful_contact') as string) || null,
+    next_planned_contact: (formData.get('next_planned_contact') as string) || null,
+    notes: (formData.get('notes') as string) || null,
+  };
+
+  const { error } = await supabase.from('organization_relationships').insert(fields as never);
+  if (error) {
+    redirect(`/admin/organizations/${orgId}/relationship?error=${encodeURIComponent(error.message)}`);
+  }
+  redirect(`/admin/organizations/${orgId}`);
+}
